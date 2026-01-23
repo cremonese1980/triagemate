@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: triagemate-ingest
+
+server:
+  port: 8081
+
+triagemate-triage:
+  base-url: http://localhost:8082
+  timeout-ms: 800
+
+logging:
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%X{requestId}] %-5level %logger{36} - %msg%n"
