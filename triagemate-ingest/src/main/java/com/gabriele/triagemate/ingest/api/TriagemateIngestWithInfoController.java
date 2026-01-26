@@ -88,7 +88,7 @@ public class TriagemateIngestWithInfoController {
             case BEST_EFFORT -> HttpStatus.OK;
         };
 
-        log.info("hello service");
+        log.info("Ingest service");
 
         return ResponseEntity.status(httpStatus).body(response);
     }

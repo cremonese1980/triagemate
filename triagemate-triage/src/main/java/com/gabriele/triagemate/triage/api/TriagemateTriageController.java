@@ -24,7 +24,7 @@ public class TriagemateTriageController {
     @GetMapping("/info/slow")
     public TriagemateTriageResponse slow(@RequestParam(defaultValue = DEFAULT_TIMEOUT) long ms) throws InterruptedException {
         Thread.sleep(ms);
-        log.info("info service");
+        log.info("Triage service");
         return TriagemateTriageResponse.ok(ms);
 
 
