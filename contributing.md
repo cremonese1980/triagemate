@@ -29,7 +29,34 @@ All commits must follow the commit message rules defined here:
 
 Commits that do not follow this convention should not be merged.
 
+
 ---
+
+## Solo PR-style workflow (mandatory)
+
+Even as a solo developer, all changes must follow a PR-style workflow to keep `main` stable and the history reviewable.
+
+### Rules
+- Create a branch from `main` for every change
+- One story = one PR
+- Keep PRs small and focused (avoid mixed concerns)
+- Use 1–3 commits per PR whenever possible
+- Ensure CI is green before merging
+- Use squash merge
+- Delete the branch after merge
+
+### PR hygiene
+- PR title should describe the change clearly (match the story intent)
+- Commits must follow the commit message convention (`docs/commit-messages.md`)
+- If documentation or behavior changes, update relevant docs in the same PR
+
+### Enforcement
+At this stage, these workflow rules are enforced by process and discipline.
+Automated enforcement (required checks, commit/PR conventions tooling) may be introduced later when the workflow is stable.
+
+---
+
+
 
 ## Branching rules
 
