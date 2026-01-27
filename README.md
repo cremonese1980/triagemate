@@ -90,7 +90,7 @@ Key documents:
 - Correlation and request IDs are propagated across services
 - No secrets or sensitive data are logged
 
-See [`docs/logging.md`](docs/logging.md) for detailed rules.
+See [`docs/logging.md`](docs/logging.md) for detailed rules..yml
 
 ---
 
