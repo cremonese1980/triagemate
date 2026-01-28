@@ -3,12 +3,12 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.4.0</version>
-        <relativePath/>
+        <groupId>com.gabriele.triagemate</groupId>
+        <artifactId>triagemate</artifactId>
+        <version>0.4.0</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
-    <groupId>com.gabriele</groupId>
+    <groupId>com.gabriele.triagemate</groupId>
     <artifactId>triagemate-triage</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>triagemate-triage</name>
@@ -26,10 +26,14 @@
         <tag/>
         <url/>
     </scm>
-    <properties>
-        <java.version>21</java.version>
-    </properties>
     <dependencies>
+
+        <dependency>
+            <groupId>com.gabriele.tiragemate</groupId>
+            <artifactId>triagemate-contracts</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
@@ -52,7 +56,6 @@
         <dependency>
             <groupId>net.logstash.logback</groupId>
             <artifactId>logstash-logback-encoder</artifactId>
-            <version>7.4</version>
         </dependency>
 
     </dependencies>
