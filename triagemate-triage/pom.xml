@@ -8,9 +8,7 @@
         <version>0.4.0</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
-    <groupId>com.gabriele.triagemate</groupId>
     <artifactId>triagemate-triage</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
     <name>triagemate-triage</name>
     <description>triagemate-triage</description>
     <url/>
@@ -29,9 +27,8 @@
     <dependencies>
 
         <dependency>
-            <groupId>com.gabriele.tiragemate</groupId>
+            <groupId>com.gabriele.triagemate</groupId>
             <artifactId>triagemate-contracts</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
         </dependency>
 
         <dependency>

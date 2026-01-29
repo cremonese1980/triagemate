@@ -9,16 +9,15 @@
 
     <!-- Parent solo per dependency management e Java version -->
     <parent>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.4.0</version>
-        <relativePath/>
+        <groupId>com.gabriele.triagemate</groupId>
+        <artifactId>triagemate</artifactId>
+        <version>0.4.0</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <groupId>com.gabriele.triagemate</groupId>
     <artifactId>triagemate-contracts</artifactId>
-    <version>0.1.0</version>
     <packaging>jar</packaging>
+
 
     <name>triagemate-contracts</name>
     <description>Shared domain contracts and event definitions for Triagemate</description>

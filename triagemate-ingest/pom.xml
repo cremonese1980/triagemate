@@ -10,8 +10,6 @@
 	</parent>
 	<artifactId>triagemate-ingest</artifactId>
 	<name>triagemate-ingest</name>
-	<groupId>com.triagemate.gabriele</groupId>
-	<version>0.0.1-SNAPSHOT</version>
 	<description>Demo project for Spring Boot</description>
 	<url/>
 	<licenses>
@@ -30,7 +28,6 @@
 		<dependency>
 			<groupId>com.gabriele.triagemate</groupId>
 			<artifactId>triagemate-contracts</artifactId>
-			<version>0.1.0</version>
 		</dependency>
 
 		<dependency>
