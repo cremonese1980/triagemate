@@ -41,7 +41,7 @@ Enqueue triage jobs
 Never contain AI logic
 
 Package structure
-com.gabriele.triagemate.ingest
+com.triagemate.ingest
 ├── api            // REST endpoints, webhooks
 ├── application    // use cases, orchestration
 ├── domain         // core domain model (Message, Source, Metadata)
@@ -62,7 +62,7 @@ Classify, prioritize, enrich messages
 Produce structured decisions (priority, category, action)
 
 Package structure
-com.gabriele.triagemate.triage
+com.triagemate.triage
 ├── api            // internal APIs if needed
 ├── application    // triage pipelines, workflows
 ├── domain         // TriageResult, Priority, Category

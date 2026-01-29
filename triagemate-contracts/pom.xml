@@ -9,7 +9,7 @@
 
     <!-- Parent solo per dependency management e Java version -->
     <parent>
-        <groupId>com.gabriele.triagemate</groupId>
+        <groupId>com.triagemate</groupId>
         <artifactId>triagemate</artifactId>
         <version>0.4.0</version>
         <relativePath>../pom.xml</relativePath>
