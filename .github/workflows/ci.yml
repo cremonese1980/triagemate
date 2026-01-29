@@ -29,5 +29,4 @@ jobs:
           cache: maven
 
       - name: Run tests
-        working-directory: ${{ matrix.module }}
         run: ./mvnw -B -q test
