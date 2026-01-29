@@ -3,7 +3,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>com.gabriele.triagemate</groupId>
+        <groupId>com.triagemate</groupId>
         <artifactId>triagemate</artifactId>
         <version>0.4.0</version>
         <relativePath>../pom.xml</relativePath>
@@ -27,7 +27,7 @@
     <dependencies>
 
         <dependency>
-            <groupId>com.gabriele.triagemate</groupId>
+            <groupId>com.triagemate</groupId>
             <artifactId>triagemate-contracts</artifactId>
         </dependency>
 
