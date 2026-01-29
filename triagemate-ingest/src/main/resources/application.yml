@@ -1,6 +1,13 @@
 spring:
   application:
     name: triagemate-ingest
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    properties:
+      spring.json.add.type.headers: false
 
 server:
   port: 8081
@@ -8,6 +15,9 @@ server:
 triagemate-triage:
   base-url: http://localhost:8082
   timeout-ms: 800
+  kafka:
+    topics:
+      input-received-v1: triagemate.ingest.input-received.v1
 
 logging:
   pattern:
@@ -17,4 +27,8 @@ logging:
       org.apache.catalina: WARN
       org.apache.coyote: WARN
       org.hibernate.validator: WARN
+
+
+
+
 
