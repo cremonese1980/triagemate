@@ -84,7 +84,9 @@ public class KafkaIngestEventPublisher implements IngestEventPublisher {
                     topic, eventId, inputId,
                     ex
             );
-            throw new RuntimeException("Kafka publish failed for topic " + topic, ex);
+
+            throw new KafkaPublishFailedException("Kafka publish failed for topic " + topic, ex);
+
         }
     }
 }
