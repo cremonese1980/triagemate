@@ -2,14 +2,40 @@ spring:
   application:
     name: triagemate-triage
 
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+    consumer:
+      group-id: triagemate-triage
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      enable-auto-commit: false
+      auto-offset-reset: earliest
+
+    listener:
+      ack-mode: MANUAL
+
+    properties:
+      spring.json.trusted.packages: com.triagemate.contracts.*
+      spring.json.use.type.headers: false
+      spring.json.value.default.type: com.triagemate.contracts.events.EventEnvelope
+
 server:
   port: 8082
 
 logging:
   pattern:
     console: "%d{HH:mm:ss.SSS} [%X{requestId}] %-5level %logger{36} - %msg%n"
-    level:
-      root: INFO
-      org.apache.catalina: WARN
-      org.apache.coyote: WARN
-      org.hibernate.validator: WARN
+  level:
+    root: INFO
+    org.apache.catalina: WARN
+    org.apache.coyote: WARN
+    org.hibernate.validator: WARN
+
+triagemate:
+  kafka:
+    topics:
+      input-received: triagemate.ingest.input-received.v1
+    consumer:
+      group-id: triagemate-triage
+

@@ -1,0 +1,17 @@
+spring:
+  kafka:
+    consumer:
+      group-id: triagemate-triage-test
+    properties:
+      spring.json.trusted.packages: com.triagemate.contracts.*
+      spring.json.use.type.headers: false
+      spring.json.value.default.type: com.triagemate.contracts.events.EventEnvelope
+
+triagemate:
+  kafka:
+    topics:
+      input-received-v1: triagemate.ingest.input-received.v1
+    consumer:
+      group-id: triagemate-triage-test
+
+
