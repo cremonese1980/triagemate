@@ -54,7 +54,7 @@
 			<scope>test</scope>
 		</dependency>
 
-		<!-- Spring Kafka (già probabilmente presente) -->
+		<!-- Spring Kafka -->
 		<dependency>
 			<groupId>org.springframework.kafka</groupId>
 			<artifactId>spring-kafka</artifactId>
