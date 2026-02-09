@@ -2,6 +2,10 @@ package com.triagemate.triage.kafka;
 
 import com.triagemate.contracts.events.EventEnvelope;
 import com.triagemate.contracts.events.v1.InputReceivedV1;
+import com.triagemate.triage.decision.DecisionContext;
+import com.triagemate.triage.decision.DecisionContextFactory;
+import com.triagemate.triage.decision.DecisionResult;
+import com.triagemate.triage.decision.DecisionService;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,8 +19,16 @@ import org.springframework.stereotype.Component;
 public class InputReceivedConsumer {
 
     private static final Logger log = LoggerFactory.getLogger(InputReceivedConsumer.class);
+    private final DecisionContextFactory decisionContextFactory;
+    private final DecisionService decisionService;
 
-
+    public InputReceivedConsumer(
+            DecisionContextFactory decisionContextFactory,
+            DecisionService decisionService
+    ) {
+        this.decisionContextFactory = decisionContextFactory;
+        this.decisionService = decisionService;
+    }
 
     @KafkaListener(
             topics = "${triagemate.kafka.topics.input-received}",
@@ -35,26 +47,25 @@ public class InputReceivedConsumer {
             return;
         }
 
+        DecisionContext<InputReceivedV1> context = decisionContextFactory.fromEnvelope(envelope);
+        DecisionResult result = decisionService.decide(context);
+
         log.info(
-                "Consumed event: eventId={}, type={}, version={}, key={}, producer={}, requestId={}, correlationId={}, topic={}, partition={}, offset={}",
+                "Consumed event: eventId={}, type={}, version={}, key={}, outcome={}, reason={}, topic={}, partition={}, offset={}",
                 envelope.eventId(),
                 envelope.eventType(),
                 envelope.eventVersion(),
                 record.key(),
-                envelope.producer() != null ? envelope.producer().service() : null,
-                envelope.trace() != null ? envelope.trace().requestId() : null,
-                envelope.trace() != null ? envelope.trace().correlationId() : null,
+                result.outcome(),
+                result.reason(),
                 record.topic(),
                 record.partition(),
                 record.offset()
         );
 
-        // Phase 7.1: no business logic, just acknowledge
+        // Phase 7.2: orchestrate only
         ack.acknowledge();
-
-
     }
 
 }
-
 
