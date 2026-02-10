@@ -6,6 +6,7 @@ import com.triagemate.triage.decision.DecisionContext;
 import com.triagemate.triage.decision.DecisionContextFactory;
 import com.triagemate.triage.decision.DecisionResult;
 import com.triagemate.triage.decision.DecisionService;
+import com.triagemate.triage.routing.DecisionRouter;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,13 +22,16 @@ public class InputReceivedConsumer {
     private static final Logger log = LoggerFactory.getLogger(InputReceivedConsumer.class);
     private final DecisionContextFactory decisionContextFactory;
     private final DecisionService decisionService;
+    private final DecisionRouter decisionRouter;
 
     public InputReceivedConsumer(
             DecisionContextFactory decisionContextFactory,
-            DecisionService decisionService
+            DecisionService decisionService,
+            DecisionRouter decisionRouter
     ) {
         this.decisionContextFactory = decisionContextFactory;
         this.decisionService = decisionService;
+        this.decisionRouter = decisionRouter;
     }
 
     @KafkaListener(
@@ -50,20 +54,9 @@ public class InputReceivedConsumer {
         DecisionContext<InputReceivedV1> context = decisionContextFactory.fromEnvelope(envelope);
         DecisionResult result = decisionService.decide(context);
 
-        log.info(
-                "Consumed event: eventId={}, type={}, version={}, key={}, outcome={}, reason={}, topic={}, partition={}, offset={}",
-                envelope.eventId(),
-                envelope.eventType(),
-                envelope.eventVersion(),
-                record.key(),
-                result.outcome(),
-                result.reason(),
-                record.topic(),
-                record.partition(),
-                record.offset()
-        );
+        decisionRouter.route(result, context);
 
-        // Phase 7.2: orchestrate only
+        // Phase 7.3: route outcome and acknowledge
         ack.acknowledge();
     }
 
