@@ -4,15 +4,18 @@ import com.triagemate.triage.decision.DecisionContext;
 import com.triagemate.triage.decision.DecisionResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
 
-@Component
+import java.util.Objects;
+
 public class DefaultDecisionRouter implements DecisionRouter {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultDecisionRouter.class);
 
     @Override
     public void route(DecisionResult result, DecisionContext<?> context) {
+        Objects.requireNonNull(result, "result must not be null");
+        Objects.requireNonNull(context, "context must not be null");
+
         switch (result.outcome()) {
             case ACCEPT -> handleAccept(result, context);
             case REJECT -> handleReject(result, context);
