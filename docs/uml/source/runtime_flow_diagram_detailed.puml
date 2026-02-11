@@ -1,0 +1,35 @@
+@startuml
+start
+
+:Kafka delivers ConsumerRecord;
+
+:Extract EventEnvelope;
+
+if (envelope == null?) then (yes)
+  :acknowledge;
+  stop
+endif
+
+if (idempotencyGuard.isDuplicate?) then (yes)
+  :acknowledge;
+  stop
+endif
+
+:DecisionContextFactory.fromEnvelope();
+
+:DecisionService.decide();
+
+:DecisionRouter.route();
+
+if (outcome == RETRY?) then (yes)
+  :throw RetryableDecisionException;
+endif
+
+:DecisionOutcomePublisher.publish();
+
+:idempotencyGuard.markProcessed();
+
+:acknowledge;
+
+stop
+@enduml

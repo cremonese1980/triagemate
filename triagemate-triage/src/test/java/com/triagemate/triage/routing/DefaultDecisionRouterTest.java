@@ -1,27 +1,33 @@
 package com.triagemate.triage.routing;
 
-import ch.qos.logback.classic.Level;
-import ch.qos.logback.classic.Logger;
-import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.read.ListAppender;
 import com.triagemate.triage.decision.DecisionContext;
 import com.triagemate.triage.decision.DecisionOutcome;
 import com.triagemate.triage.decision.DecisionResult;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.slf4j.LoggerFactory;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.*;
 
+@ExtendWith(MockitoExtension.class)
 class DefaultDecisionRouterTest {
 
-    private final DefaultDecisionRouter router = new DefaultDecisionRouter();
+    @Mock
+    private DecisionOutcomePublisher publisher;
+
+    private DefaultDecisionRouter router;
+
+    @BeforeEach
+    void setUp() {
+        router = new DefaultDecisionRouter(publisher);
+    }
+
     private final DecisionContext<String> context = new DecisionContext<>(
             "event-1",
             "triagemate.ingest.input-received",
@@ -31,75 +37,60 @@ class DefaultDecisionRouterTest {
             "payload"
     );
 
-    private Logger logger;
-    private ListAppender<ILoggingEvent> listAppender;
+    @Test
+    void routeAcceptPublishesDecision() {
+        DecisionResult result = DecisionResult.of(DecisionOutcome.ACCEPT, "accepted", Map.of());
 
-    @BeforeEach
-    void setUp() {
-        logger = (Logger) LoggerFactory.getLogger(DefaultDecisionRouter.class);
-        listAppender = new ListAppender<>();
-        listAppender.start();
-        logger.addAppender(listAppender);
-    }
+        router.route(result, context);
 
-    @AfterEach
-    void tearDown() {
-        logger.detachAppender(listAppender);
+        verify(publisher, times(1)).publish(result, context);
     }
 
     @Test
-    void routeAcceptLogsAtInfo() {
-        router.route(DecisionResult.of(DecisionOutcome.ACCEPT, "accepted", Map.of()), context);
+    void routeRejectPublishesDecision() {
+        DecisionResult result = DecisionResult.of(DecisionOutcome.REJECT, "rejected", Map.of());
 
-        assertEquals(1, listAppender.list.size());
-        ILoggingEvent event = listAppender.list.get(0);
-        assertEquals(Level.INFO, event.getLevel());
-        assertEquals(
-                "ROUTED: ACCEPT — eventId=event-1, type=triagemate.ingest.input-received, reason=accepted, correlationId=corr-1, requestId=req-1",
-                event.getFormattedMessage()
-        );
+        router.route(result, context);
+
+        verify(publisher, times(1)).publish(result, context);
     }
 
     @Test
-    void routeRejectLogsAtWarn() {
-        router.route(DecisionResult.of(DecisionOutcome.REJECT, "rejected", Map.of()), context);
+    void routeDeferPublishesDecision() {
+        DecisionResult result = DecisionResult.of(DecisionOutcome.DEFER, "deferred", Map.of());
 
-        assertEquals(1, listAppender.list.size());
-        ILoggingEvent event = listAppender.list.get(0);
-        assertEquals(Level.WARN, event.getLevel());
-        assertEquals(
-                "ROUTED: REJECT — eventId=event-1, type=triagemate.ingest.input-received, reason=rejected, correlationId=corr-1, requestId=req-1",
-                event.getFormattedMessage()
-        );
+        router.route(result, context);
+
+        verify(publisher, times(1)).publish(result, context);
     }
 
     @Test
-    void routeDeferLogsAtInfo() {
-        router.route(DecisionResult.of(DecisionOutcome.DEFER, "deferred", Map.of()), context);
+    void routeRetryPublishesAndThrowsRetryableException() {
+        DecisionResult result = DecisionResult.of(DecisionOutcome.RETRY, "retry-later", Map.of());
 
-        assertEquals(1, listAppender.list.size());
-        ILoggingEvent event = listAppender.list.get(0);
-        assertEquals(Level.INFO, event.getLevel());
-        assertEquals(
-                "ROUTED: DEFER — eventId=event-1, type=triagemate.ingest.input-received, reason=deferred, correlationId=corr-1, requestId=req-1",
-                event.getFormattedMessage()
-        );
-    }
-
-    @Test
-    void routeRetryLogsAtInfoAndThrowsRetryableException() {
-        RetryableDecisionException exception = assertThrows(
+        assertThrows(
                 RetryableDecisionException.class,
-                () -> router.route(DecisionResult.of(DecisionOutcome.RETRY, "retry-later", Map.of()), context)
+                () -> router.route(result, context)
         );
 
-        assertTrue(exception.getMessage().contains("eventId=event-1"));
-        assertEquals(1, listAppender.list.size());
-        ILoggingEvent event = listAppender.list.get(0);
-        assertEquals(Level.INFO, event.getLevel());
-        assertEquals(
-                "ROUTED: RETRY — eventId=event-1, type=triagemate.ingest.input-received, reason=retry-later, correlationId=corr-1, requestId=req-1",
-                event.getFormattedMessage()
+        verify(publisher, times(1)).publish(result, context);
+    }
+
+    @Test
+    void routeThrowsNullPointerExceptionForNullResult() {
+        assertThrows(
+                NullPointerException.class,
+                () -> router.route(null, context)
+        );
+    }
+
+    @Test
+    void routeThrowsNullPointerExceptionForNullContext() {
+        DecisionResult result = DecisionResult.of(DecisionOutcome.ACCEPT, "test", Map.of());
+
+        assertThrows(
+                NullPointerException.class,
+                () -> router.route(result, null)
         );
     }
 }

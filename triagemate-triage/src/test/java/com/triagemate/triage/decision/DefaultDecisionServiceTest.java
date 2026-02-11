@@ -6,7 +6,6 @@ import java.time.Instant;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DefaultDecisionServiceTest {
 
@@ -25,8 +24,8 @@ class DefaultDecisionServiceTest {
         DecisionResult result = service.decide(context);
 
         assertEquals(DecisionOutcome.ACCEPT, result.outcome());
-        assertEquals("default-accept", result.reason());
-        assertTrue(result.attributes().isEmpty());
+        assertEquals("deterministic-default-accept", result.reason());
+        assertEquals("rules-v1", result.attributes().get("strategy"));
     }
 
     @Test

@@ -1,0 +1,20 @@
+@startuml
+start
+
+:Kafka input-received topic;
+
+:InputReceivedConsumer.onMessage();
+
+if (Duplicate event?) then (yes)
+  :STOP;
+  stop
+else (no)
+  :Build DecisionContext;
+  :DecisionService.decide();
+  :DecisionRouter.route();
+  :KafkaDecisionOutcomePublisher.publish();
+  :Kafka decision-made topic;
+  stop
+endif
+
+@enduml

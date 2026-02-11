@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Configuration;
 public class RoutingConfig {
 
     @Bean
-    DecisionRouter decisionRouter() {
-        return new DefaultDecisionRouter();
+    DecisionRouter decisionRouter(DecisionOutcomePublisher decisionOutcomePublisher) {
+        return new DefaultDecisionRouter(decisionOutcomePublisher);
     }
 }

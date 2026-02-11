@@ -1,17 +1,26 @@
 spring:
+  application:
+    name: triagemate-triage
   kafka:
     consumer:
       group-id: triagemate-triage-test
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      enable-auto-commit: false
+      auto-offset-reset: earliest
+
+    listener:
+      ack-mode: MANUAL
+
     properties:
       spring.json.trusted.packages: com.triagemate.contracts.*
-      spring.json.use.type.headers: false
+      spring.json.use.type.headers: true
       spring.json.value.default.type: com.triagemate.contracts.events.EventEnvelope
 
 triagemate:
   kafka:
     topics:
-      input-received-v1: triagemate.ingest.input-received.v1
+      input-received: triagemate.ingest.input-received.v1
+      decision-made: triagemate.triage.decision-made.v1
     consumer:
       group-id: triagemate-triage-test
-
-
