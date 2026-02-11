@@ -10,8 +10,7 @@ spring:
 triagemate:
   kafka:
     topics:
-      input-received-v1: triagemate.ingest.input-received.v1
+      input-received: triagemate.ingest.input-received.v1
+      decision-made: triagemate.triage.decision-made.v1
     consumer:
       group-id: triagemate-triage-test
-
-

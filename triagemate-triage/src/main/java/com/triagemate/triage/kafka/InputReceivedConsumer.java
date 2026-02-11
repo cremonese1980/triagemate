@@ -6,7 +6,10 @@ import com.triagemate.triage.decision.DecisionContext;
 import com.triagemate.triage.decision.DecisionContextFactory;
 import com.triagemate.triage.decision.DecisionResult;
 import com.triagemate.triage.decision.DecisionService;
+import com.triagemate.triage.idempotency.EventIdIdempotencyGuard;
 import com.triagemate.triage.routing.DecisionRouter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,7 +17,7 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
 
-
+import static net.logstash.logback.argument.StructuredArguments.kv;
 
 @Component
 public class InputReceivedConsumer {
@@ -23,15 +26,21 @@ public class InputReceivedConsumer {
     private final DecisionContextFactory decisionContextFactory;
     private final DecisionService decisionService;
     private final DecisionRouter decisionRouter;
+    private final EventIdIdempotencyGuard idempotencyGuard;
+    private final MeterRegistry meterRegistry;
 
     public InputReceivedConsumer(
             DecisionContextFactory decisionContextFactory,
             DecisionService decisionService,
-            DecisionRouter decisionRouter
+            DecisionRouter decisionRouter,
+            EventIdIdempotencyGuard idempotencyGuard,
+            MeterRegistry meterRegistry
     ) {
         this.decisionContextFactory = decisionContextFactory;
         this.decisionService = decisionService;
         this.decisionRouter = decisionRouter;
+        this.idempotencyGuard = idempotencyGuard;
+        this.meterRegistry = meterRegistry;
     }
 
     @KafkaListener(
@@ -45,20 +54,53 @@ public class InputReceivedConsumer {
         EventEnvelope<InputReceivedV1> envelope = record.value();
 
         if (envelope == null) {
-            log.warn("Received null envelope. topic={}, partition={}, offset={}",
-                    record.topic(), record.partition(), record.offset());
+            log.warn("Received null envelope", kv("requestId", null), kv("correlationId", null), kv("eventId", null));
+            ack.acknowledge();
+            return;
+        }
+
+        if (idempotencyGuard.isDuplicate(envelope.eventId())) {
+            log.info(
+                    "Skipping duplicate event",
+                    kv("requestId", traceValue(envelope, "requestId")),
+                    kv("correlationId", traceValue(envelope, "correlationId")),
+                    kv("eventId", envelope.eventId()),
+                    kv("decisionOutcome", "DUPLICATE")
+            );
             ack.acknowledge();
             return;
         }
 
         DecisionContext<InputReceivedV1> context = decisionContextFactory.fromEnvelope(envelope);
+
+        Timer.Sample sample = Timer.start(meterRegistry);
         DecisionResult result = decisionService.decide(context);
-
         decisionRouter.route(result, context);
+        sample.stop(Timer.builder("triagemate.decision.latency")
+                .tag("outcome", result.outcome().name())
+                .register(meterRegistry));
 
-        // Phase 7.3: route outcome and acknowledge
+        idempotencyGuard.markProcessed(envelope.eventId());
+
+        log.info(
+                "Decision completed",
+                kv("requestId", traceValue(envelope, "requestId")),
+                kv("correlationId", traceValue(envelope, "correlationId")),
+                kv("eventId", envelope.eventId()),
+                kv("decisionOutcome", result.outcome().name())
+        );
+
         ack.acknowledge();
     }
 
+    private String traceValue(EventEnvelope<?> envelope, String key) {
+        if (envelope.trace() == null) {
+            return null;
+        }
+        return switch (key) {
+            case "requestId" -> envelope.trace().requestId();
+            case "correlationId" -> envelope.trace().correlationId();
+            default -> null;
+        };
+    }
 }
-
