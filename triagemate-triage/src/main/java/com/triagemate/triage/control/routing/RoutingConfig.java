@@ -1,5 +1,6 @@
 package com.triagemate.triage.control.routing;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -9,5 +10,11 @@ public class RoutingConfig {
     @Bean
     DecisionRouter decisionRouter(DecisionOutcomePublisher decisionOutcomePublisher) {
         return new DefaultDecisionRouter(decisionOutcomePublisher);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    DecisionReplayService decisionReplayService() {
+        return new NoOpDecisionReplayService();
     }
 }
