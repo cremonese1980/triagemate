@@ -1,0 +1,53 @@
+@startuml
+
+class InputReceivedConsumer {
+  +onMessage(record, ack)
+}
+
+class DecisionContextFactory {
+  +fromEnvelope(envelope)
+}
+
+class DecisionService {
+  +decide(context)
+}
+
+class DecisionRouter {
+  +route(result, context)
+}
+
+class DefaultDecisionRouter
+
+class DecisionOutcomePublisher {
+  +publish(result, context)
+}
+
+class KafkaDecisionOutcomePublisher
+
+class EventIdIdempotencyGuard {
+  +isDuplicate(eventId)
+  +markProcessed(eventId)
+}
+
+class DecisionContext<T>
+class DecisionResult
+class EventEnvelope<T>
+class InputReceivedV1
+class DecisionMadeV1
+
+InputReceivedConsumer --> DecisionContextFactory
+InputReceivedConsumer --> DecisionService
+InputReceivedConsumer --> DecisionRouter
+InputReceivedConsumer --> EventIdIdempotencyGuard
+
+DecisionRouter <|-- DefaultDecisionRouter
+DefaultDecisionRouter --> DecisionOutcomePublisher
+DecisionOutcomePublisher <|-- KafkaDecisionOutcomePublisher
+
+DecisionContextFactory --> DecisionContext
+DecisionService --> DecisionResult
+
+KafkaDecisionOutcomePublisher --> EventEnvelope
+KafkaDecisionOutcomePublisher --> DecisionMadeV1
+
+@enduml

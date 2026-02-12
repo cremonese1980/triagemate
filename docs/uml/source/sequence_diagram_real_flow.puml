@@ -1,0 +1,21 @@
+@startuml
+
+Kafka -> InputReceivedConsumer : EventEnvelope<InputReceivedV1>
+
+InputReceivedConsumer -> EventIdIdempotencyGuard : isDuplicate(eventId)
+EventIdIdempotencyGuard --> InputReceivedConsumer : false
+
+InputReceivedConsumer -> DecisionContextFactory : fromEnvelope()
+DecisionContextFactory --> InputReceivedConsumer : DecisionContext
+
+InputReceivedConsumer -> DecisionService : decide(context)
+DecisionService --> InputReceivedConsumer : DecisionResult
+
+InputReceivedConsumer -> DecisionRouter : route(result, context)
+DecisionRouter -> KafkaDecisionOutcomePublisher : publish()
+
+KafkaDecisionOutcomePublisher -> Kafka : send DecisionMadeV1
+
+InputReceivedConsumer -> EventIdIdempotencyGuard : markProcessed()
+
+@enduml

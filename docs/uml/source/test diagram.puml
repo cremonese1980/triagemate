@@ -1,0 +1,34 @@
+@startuml
+
+participant Test
+participant KafkaContainer
+participant SpringContext
+participant InputReceivedConsumer
+participant DecisionService
+participant DecisionRouter
+participant KafkaDecisionOutcomePublisher
+participant KafkaBroker
+participant TestConsumer
+
+Test -> KafkaContainer : start()
+Test -> SpringContext : @SpringBootTest boot
+
+SpringContext -> KafkaBroker : connect
+SpringContext -> InputReceivedConsumer : register @KafkaListener
+
+Test -> KafkaBroker : produce input-received event
+
+KafkaBroker -> InputReceivedConsumer : deliver event
+
+InputReceivedConsumer -> DecisionService : decide()
+DecisionService --> InputReceivedConsumer : DecisionResult
+
+InputReceivedConsumer -> DecisionRouter : route()
+DecisionRouter -> KafkaDecisionOutcomePublisher : publish()
+
+KafkaDecisionOutcomePublisher -> KafkaBroker : produce decision-made event
+
+Test -> KafkaBroker : poll decision-made
+KafkaBroker -> TestConsumer : deliver record
+
+@enduml

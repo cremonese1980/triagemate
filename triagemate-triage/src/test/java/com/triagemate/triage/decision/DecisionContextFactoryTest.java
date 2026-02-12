@@ -1,8 +1,11 @@
 package com.triagemate.triage.decision;
 
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.triagemate.contracts.events.EventEnvelope;
 import com.triagemate.contracts.events.v1.InputReceivedV1;
 import org.junit.jupiter.api.Test;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 
 import java.time.Instant;
 import java.util.Map;
@@ -12,9 +15,11 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 class DecisionContextFactoryTest {
 
+    private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+
     @Test
     void fromEnvelopeMapsFields() {
-        DecisionContextFactory factory = new DecisionContextFactory();
+        DecisionContextFactory factory = new DecisionContextFactory(objectMapper);
         InputReceivedV1 payload = new InputReceivedV1("input-1", "email", "subject", "text", "from", 123L);
         EventEnvelope.Trace trace = new EventEnvelope.Trace("request-1", "corr-1", "cause-1");
         EventEnvelope<InputReceivedV1> envelope = new EventEnvelope<>(
@@ -41,7 +46,7 @@ class DecisionContextFactoryTest {
 
     @Test
     void fromEnvelopeHandlesMissingTrace() {
-        DecisionContextFactory factory = new DecisionContextFactory();
+        DecisionContextFactory factory = new DecisionContextFactory(objectMapper);
         InputReceivedV1 payload = new InputReceivedV1("input-2", "ticket", "subject", "text", "from", 456L);
         EventEnvelope<InputReceivedV1> envelope = new EventEnvelope<>(
                 "event-2",

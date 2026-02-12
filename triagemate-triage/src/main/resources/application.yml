@@ -5,6 +5,10 @@ spring:
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
 
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
     consumer:
       group-id: triagemate-triage
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
@@ -36,6 +40,7 @@ triagemate:
   kafka:
     topics:
       input-received: triagemate.ingest.input-received.v1
+      decision-made: triagemate.triage.decision-made.v1
     consumer:
       group-id: triagemate-triage
 

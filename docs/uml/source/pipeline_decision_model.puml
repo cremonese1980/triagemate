@@ -1,0 +1,16 @@
+@startuml
+skinparam linetype ortho
+
+class "Input Event" as InputEvent
+class "DecisionContextFactory" as CtxFactory
+class "DecisionService\n(pure decision logic)" as DecisionService
+class "DecisionRouter\n(governance/policy)" as Router
+class "DecisionOutcomePublisher\n(IO)" as Publisher
+class "Kafka Output Event" as OutputEvent
+
+InputEvent --> CtxFactory : build context
+CtxFactory --> DecisionService : decide(ctx)
+DecisionService --> Router : route(result, ctx)
+Router --> Publisher : publish(result, ctx)
+Publisher --> OutputEvent : emit envelope
+@enduml

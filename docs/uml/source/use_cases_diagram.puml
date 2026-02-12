@@ -1,0 +1,12 @@
+@startuml
+
+actor IngestService
+actor Analyst
+
+rectangle TriageService {
+  IngestService --> (Process Incoming Event)
+  (Process Incoming Event) --> (Produce Decision Event)
+  (Process Incoming Event) --> (Ensure Idempotency)
+}
+
+@enduml
