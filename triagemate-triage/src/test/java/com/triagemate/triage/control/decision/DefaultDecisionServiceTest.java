@@ -32,6 +32,8 @@ class DefaultDecisionServiceTest {
         assertEquals(DecisionOutcome.ACCEPT, result.outcome());
         assertEquals("deterministic-default-accept", result.reason());
         assertEquals("rules-v1", result.attributes().get("strategy"));
+        assertEquals(ReasonCode.ACCEPTED_BY_DEFAULT, result.reasonCode());
+        assertEquals("All policies passed; accepted by default", result.humanReadableReason());
     }
 
     @Test
@@ -45,7 +47,7 @@ class DefaultDecisionServiceTest {
     @Test
     void decisionResultKeepsAttributes() {
         Map<String, Object> attributes = Map.of("source", "unit-test");
-        DecisionResult result = new DecisionResult(DecisionOutcome.REJECT, "rejected", attributes);
+        DecisionResult result = new DecisionResult(DecisionOutcome.REJECT, "rejected", attributes, null, null);
 
         assertEquals(DecisionOutcome.REJECT, result.outcome());
         assertEquals("rejected", result.reason());
@@ -67,6 +69,7 @@ class DefaultDecisionServiceTest {
         assertEquals(DecisionOutcome.REJECT, result.outcome());
         assertEquals("blocked-by-test", result.reason());
         assertEquals("policy-rejection", result.attributes().get("strategy"));
+        assertEquals(ReasonCode.POLICY_REJECTED, result.reasonCode());
     }
 
     @Test
@@ -84,5 +87,6 @@ class DefaultDecisionServiceTest {
         assertEquals(DecisionOutcome.REJECT, result.outcome());
         assertEquals("over-budget", result.reason());
         assertEquals("cost-limit-exceeded", result.attributes().get("strategy"));
+        assertEquals(ReasonCode.COST_LIMIT_EXCEEDED, result.reasonCode());
     }
 }

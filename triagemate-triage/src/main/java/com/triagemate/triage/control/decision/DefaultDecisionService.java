@@ -29,7 +29,9 @@ public class DefaultDecisionService implements DecisionService {
                 return DecisionResult.of(
                         DecisionOutcome.REJECT,
                         policyResult.reason(),
-                        attributes
+                        attributes,
+                        ReasonCode.POLICY_REJECTED,
+                        "Request rejected by policy: " + policyResult.reason()
                 );
             }
         }
@@ -41,7 +43,9 @@ public class DefaultDecisionService implements DecisionService {
                     DecisionOutcome.REJECT,
                     costDecision.reason(),
                     Map.of("strategy", "cost-limit-exceeded",
-                           "estimatedCost", String.valueOf(costDecision.estimatedCost()))
+                           "estimatedCost", String.valueOf(costDecision.estimatedCost())),
+                    ReasonCode.COST_LIMIT_EXCEEDED,
+                    "Request rejected by cost guard: " + costDecision.reason()
             );
         }
 
@@ -49,7 +53,9 @@ public class DefaultDecisionService implements DecisionService {
         return DecisionResult.of(
                 DecisionOutcome.ACCEPT,
                 "deterministic-default-accept",
-                Map.of("strategy", "rules-v1")
+                Map.of("strategy", "rules-v1"),
+                ReasonCode.ACCEPTED_BY_DEFAULT,
+                "All policies passed; accepted by default"
         );
     }
 }
