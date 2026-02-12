@@ -7,7 +7,15 @@ on:
 
 jobs:
   test:
+    name: Test (${{ matrix.module }})
     runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        module:
+          - triagemate-ingest
+          - triagemate-triage
 
     steps:
       - uses: actions/checkout@v4
@@ -23,5 +31,5 @@ jobs:
           docker version
           docker info
 
-      - name: Run tests
-        run: ./mvnw -B  test
+      - name: Run tests (module)
+        run: ./mvnw -B -pl ${{ matrix.module }} -am test
