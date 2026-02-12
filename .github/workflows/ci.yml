@@ -18,15 +18,16 @@ jobs:
           - triagemate-triage
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Java 21
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "21"
           cache: maven
 
-      - name: Run tests
-        run: ./mvnw -B -q test
+      - name: Verify Docker
+        run: docker version
+
+      - name: Run tests (module)
+        run: ./mvnw -B -pl ${{ matrix.module }} -am test
