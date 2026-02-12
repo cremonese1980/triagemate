@@ -21,4 +21,4 @@ jobs:
           cache: maven
 
       - name: Run tests
-        run: ./mvnw -B -q test
+        run: ./mvnw -B -pl ${{ matrix.module }} -am test
