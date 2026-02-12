@@ -24,4 +24,4 @@ jobs:
           docker info
 
       - name: Run tests
-        run: ./mvnw -B -pl ${{ matrix.module }} -am test
+        run: ./mvnw -B  test
