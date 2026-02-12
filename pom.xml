@@ -46,6 +46,17 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <!-- AGGIUNGI QUESTO OVERRIDE ESPLICITO -->
+            <dependency>
+                <groupId>com.github.docker-java</groupId>
+                <artifactId>docker-java-api</artifactId>
+                <version>3.4.1</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.docker-java</groupId>
+                <artifactId>docker-java-transport-zerodep</artifactId>
+                <version>3.4.1</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
