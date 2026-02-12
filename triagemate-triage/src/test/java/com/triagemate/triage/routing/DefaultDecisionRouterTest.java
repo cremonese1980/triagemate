@@ -1,8 +1,8 @@
 package com.triagemate.triage.routing;
 
-import com.triagemate.triage.decision.DecisionContext;
-import com.triagemate.triage.decision.DecisionOutcome;
-import com.triagemate.triage.decision.DecisionResult;
+import com.triagemate.triage.control.decision.DecisionContext;
+import com.triagemate.triage.control.decision.DecisionOutcome;
+import com.triagemate.triage.control.decision.DecisionResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

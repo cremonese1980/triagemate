@@ -1,4 +1,4 @@
-package com.triagemate.triage.decision;
+package com.triagemate.triage.control.decision;
 
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.triagemate.contracts.events.EventEnvelope;

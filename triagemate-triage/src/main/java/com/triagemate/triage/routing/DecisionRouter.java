@@ -1,7 +1,7 @@
 package com.triagemate.triage.routing;
 
-import com.triagemate.triage.decision.DecisionContext;
-import com.triagemate.triage.decision.DecisionResult;
+import com.triagemate.triage.control.decision.DecisionContext;
+import com.triagemate.triage.control.decision.DecisionResult;
 
 public interface DecisionRouter {
 

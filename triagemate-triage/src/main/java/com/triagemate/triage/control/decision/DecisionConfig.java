@@ -1,4 +1,4 @@
-package com.triagemate.triage.decision;
+package com.triagemate.triage.control.decision;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

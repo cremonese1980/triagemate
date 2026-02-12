@@ -1,4 +1,4 @@
-package com.triagemate.triage.decision;
+package com.triagemate.triage.control.decision;
 
 import java.time.Instant;
 import java.util.Map;

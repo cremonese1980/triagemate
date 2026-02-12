@@ -1,4 +1,4 @@
-package com.triagemate.triage.decision;
+package com.triagemate.triage.control.decision;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.triagemate.contracts.events.EventEnvelope;
@@ -35,4 +35,3 @@ public class DecisionContextFactory {
         );
     }
 }
-
