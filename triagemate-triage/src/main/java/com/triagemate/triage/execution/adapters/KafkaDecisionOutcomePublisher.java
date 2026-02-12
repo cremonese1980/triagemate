@@ -1,11 +1,11 @@
-package com.triagemate.triage.kafka;
+package com.triagemate.triage.execution.adapters;
 
 import com.triagemate.contracts.events.EventEnvelope;
 import com.triagemate.contracts.events.v1.DecisionMadeV1;
 import com.triagemate.contracts.events.v1.InputReceivedV1;
 import com.triagemate.triage.control.decision.DecisionContext;
 import com.triagemate.triage.control.decision.DecisionResult;
-import com.triagemate.triage.routing.DecisionOutcomePublisher;
+import com.triagemate.triage.control.routing.DecisionOutcomePublisher;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;

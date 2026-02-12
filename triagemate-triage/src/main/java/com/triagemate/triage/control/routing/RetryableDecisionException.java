@@ -1,4 +1,4 @@
-package com.triagemate.triage.routing;
+package com.triagemate.triage.control.routing;
 
 public class RetryableDecisionException extends RuntimeException {
 

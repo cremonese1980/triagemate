@@ -1,4 +1,4 @@
-package com.triagemate.triage.routing;
+package com.triagemate.triage.control.routing;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

@@ -1,4 +1,4 @@
-package com.triagemate.triage.routing;
+package com.triagemate.triage.control.routing;
 
 import com.triagemate.triage.control.decision.DecisionContext;
 import com.triagemate.triage.control.decision.DecisionOutcome;
