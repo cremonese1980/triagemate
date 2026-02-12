@@ -27,9 +27,7 @@ jobs:
           cache: maven
 
       - name: Verify Docker
-        run: |
-          docker version
-          docker info
+        run: docker version
 
       - name: Run tests (module)
         run: ./mvnw -B -pl ${{ matrix.module }} -am test
