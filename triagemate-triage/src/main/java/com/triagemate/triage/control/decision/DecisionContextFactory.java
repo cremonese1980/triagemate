@@ -25,7 +25,7 @@ public class DecisionContextFactory {
 
         InputReceivedV1 payload = objectMapper.convertValue(envelope.payload(), InputReceivedV1.class);
 
-        return new DecisionContext<>(
+        return DecisionContext.of(
                 envelope.eventId(),
                 envelope.eventType(),
                 envelope.eventVersion(),

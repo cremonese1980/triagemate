@@ -28,7 +28,7 @@ class DefaultDecisionRouterTest {
         router = new DefaultDecisionRouter(publisher);
     }
 
-    private final DecisionContext<String> context = new DecisionContext<>(
+    private final DecisionContext<String> context = DecisionContext.of(
             "event-1",
             "triagemate.ingest.input-received",
             1,

@@ -14,7 +14,7 @@ class AcceptAllPolicyTest {
     @Test
     void evaluateAlwaysReturnsAllowed() {
         AcceptAllPolicy policy = new AcceptAllPolicy();
-        DecisionContext<String> context = new DecisionContext<>(
+        DecisionContext<String> context = DecisionContext.of(
                 "event-1", "test.event", 1, Instant.EPOCH,
                 Map.of(), "payload"
         );

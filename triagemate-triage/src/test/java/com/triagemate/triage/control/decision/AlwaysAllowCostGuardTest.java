@@ -13,7 +13,7 @@ class AlwaysAllowCostGuardTest {
     @Test
     void evaluateCostAlwaysAllows() {
         AlwaysAllowCostGuard guard = new AlwaysAllowCostGuard();
-        DecisionContext<String> context = new DecisionContext<>(
+        DecisionContext<String> context = DecisionContext.of(
                 "event-1", "test.event", 1, Instant.EPOCH, Map.of(), "payload"
         );
 

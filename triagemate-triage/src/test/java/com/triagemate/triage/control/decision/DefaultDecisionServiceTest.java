@@ -18,7 +18,7 @@ class DefaultDecisionServiceTest {
     void decideReturnsDefaultAccept() {
         DefaultDecisionService service = new DefaultDecisionService(
                 List.of(new AcceptAllPolicy()), defaultCostGuard);
-        DecisionContext<String> context = new DecisionContext<>(
+        DecisionContext<String> context = DecisionContext.of(
                 "event-1",
                 "triagemate.ingest.input-received",
                 1,
@@ -60,7 +60,7 @@ class DefaultDecisionServiceTest {
                 List.of(ctx -> PolicyResult.deny("blocked-by-test", Map.of("rule", "test"))),
                 defaultCostGuard
         );
-        DecisionContext<String> context = new DecisionContext<>(
+        DecisionContext<String> context = DecisionContext.of(
                 "event-2", "test.event", 1, Instant.EPOCH, Map.of(), "payload"
         );
 
@@ -78,7 +78,7 @@ class DefaultDecisionServiceTest {
         DefaultDecisionService service = new DefaultDecisionService(
                 List.of(new AcceptAllPolicy()), denyingGuard
         );
-        DecisionContext<String> context = new DecisionContext<>(
+        DecisionContext<String> context = DecisionContext.of(
                 "event-3", "test.event", 1, Instant.EPOCH, Map.of(), "payload"
         );
 
