@@ -12,9 +12,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class DefaultDecisionServiceTest {
 
+    private final CostGuard defaultCostGuard = new AlwaysAllowCostGuard();
+
     @Test
     void decideReturnsDefaultAccept() {
-        DefaultDecisionService service = new DefaultDecisionService(List.of(new AcceptAllPolicy()));
+        DefaultDecisionService service = new DefaultDecisionService(
+                List.of(new AcceptAllPolicy()), defaultCostGuard);
         DecisionContext<String> context = new DecisionContext<>(
                 "event-1",
                 "triagemate.ingest.input-received",
@@ -51,9 +54,10 @@ class DefaultDecisionServiceTest {
 
     @Test
     void rejectWhenPolicyDenies() {
-        DefaultDecisionService service = new DefaultDecisionService(List.of(
-                ctx -> PolicyResult.deny("blocked-by-test", Map.of("rule", "test"))
-        ));
+        DefaultDecisionService service = new DefaultDecisionService(
+                List.of(ctx -> PolicyResult.deny("blocked-by-test", Map.of("rule", "test"))),
+                defaultCostGuard
+        );
         DecisionContext<String> context = new DecisionContext<>(
                 "event-2", "test.event", 1, Instant.EPOCH, Map.of(), "payload"
         );
@@ -63,5 +67,22 @@ class DefaultDecisionServiceTest {
         assertEquals(DecisionOutcome.REJECT, result.outcome());
         assertEquals("blocked-by-test", result.reason());
         assertEquals("policy-rejection", result.attributes().get("strategy"));
+    }
+
+    @Test
+    void rejectWhenCostGuardDenies() {
+        CostGuard denyingGuard = ctx -> CostDecision.deny(99.99, "over-budget");
+        DefaultDecisionService service = new DefaultDecisionService(
+                List.of(new AcceptAllPolicy()), denyingGuard
+        );
+        DecisionContext<String> context = new DecisionContext<>(
+                "event-3", "test.event", 1, Instant.EPOCH, Map.of(), "payload"
+        );
+
+        DecisionResult result = service.decide(context);
+
+        assertEquals(DecisionOutcome.REJECT, result.outcome());
+        assertEquals("over-budget", result.reason());
+        assertEquals("cost-limit-exceeded", result.attributes().get("strategy"));
     }
 }
