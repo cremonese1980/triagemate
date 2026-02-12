@@ -9,6 +9,8 @@ jobs:
   test:
     name: Test (${{ matrix.module }})
     runs-on: ubuntu-latest
+    env:
+      DOCKER_API_VERSION: 1.44
 
     strategy:
       fail-fast: false
