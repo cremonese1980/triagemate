@@ -12,6 +12,7 @@ jobs:
 
     strategy:
       fail-fast: false
+      max-parallel: 1  # <-- AGGIUNGI QUESTO
       matrix:
         module:
           - triagemate-ingest
@@ -28,7 +29,10 @@ jobs:
           java-version: "21"
           cache: maven
 
+      # AGGIUNGI QUESTO per evitare conflitti Testcontainers
+      - name: Configure Testcontainers
+        run: |
+          echo "testcontainers.reuse.enable=false" > ~/.testcontainers.properties
+
       - name: Run tests
         run: ./mvnw -B -pl ${{ matrix.module }} -am test
-
-
