@@ -9,10 +9,6 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
-    env:
-      DOCKER_HOST: unix:///var/run/docker.sock
-      TESTCONTAINERS_RYUK_DISABLED: "true"
-
     steps:
       - uses: actions/checkout@v4
 
@@ -23,7 +19,9 @@ jobs:
           cache: maven
 
       - name: Docker info
-        run: docker version
+        run: |
+          docker version
+          docker info
 
       - name: Run tests
         run: ./mvnw -B test
