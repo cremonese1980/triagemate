@@ -7,15 +7,7 @@ on:
 
 jobs:
   test:
-    name: Test (${{ matrix.module }})
-    runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        module:
-          - triagemate-ingest
-          - triagemate-triage
+    runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v4
@@ -26,8 +18,13 @@ jobs:
           java-version: "21"
           cache: maven
 
-      - name: Verify Docker
-        run: docker version
+      - name: Install Docker
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker-ce docker-ce-cli containerd.io
+          sudo systemctl start docker
+          docker version
+          docker info
 
-      - name: Run tests (module)
-        run: ./mvnw -B -pl ${{ matrix.module }} -am test
+      - name: Run tests
+        run: ./mvnw -B test
