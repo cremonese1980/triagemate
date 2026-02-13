@@ -8,7 +8,7 @@ on:
 jobs:
   test:
     name: Test (${{ matrix.module }})
-    runs-on: ubuntu-22.04  # invece di ubuntu-latest
+    runs-on: ubuntu-latest
 
     strategy:
       fail-fast: false
@@ -32,4 +32,6 @@ jobs:
         run: rm -rf ~/.m2/repository/org/testcontainers ~/.m2/repository/com/github/docker-java
 
       - name: Run tests
-        run: ./mvnw -B -q -U clean test  # Aggiungi -U per force update
+        env:
+          DOCKER_API_VERSION: "1.40"
+        run: ./mvnw -B -q test
