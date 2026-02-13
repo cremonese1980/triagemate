@@ -8,7 +8,7 @@ on:
 jobs:
   test:
     name: Test (${{ matrix.module }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04  # invece di ubuntu-latest
 
     strategy:
       fail-fast: false
