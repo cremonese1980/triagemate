@@ -34,4 +34,4 @@ jobs:
       - name: Run tests
         env:
           DOCKER_API_VERSION: "1.40"
-        run: ./mvnw -B -q test
+        run: ./mvnw  test
