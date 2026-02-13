@@ -2,12 +2,12 @@ package com.triagemate.triage.kafka;
 
 import com.triagemate.contracts.events.EventEnvelope;
 import com.triagemate.contracts.events.v1.InputReceivedV1;
-import com.triagemate.triage.decision.DecisionContext;
-import com.triagemate.triage.decision.DecisionContextFactory;
-import com.triagemate.triage.decision.DecisionResult;
-import com.triagemate.triage.decision.DecisionService;
+import com.triagemate.triage.control.decision.DecisionContext;
+import com.triagemate.triage.control.decision.DecisionContextFactory;
+import com.triagemate.triage.control.decision.DecisionResult;
+import com.triagemate.triage.control.decision.DecisionService;
 import com.triagemate.triage.idempotency.EventIdIdempotencyGuard;
-import com.triagemate.triage.routing.DecisionRouter;
+import com.triagemate.triage.control.routing.DecisionRouter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
