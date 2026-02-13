@@ -39,6 +39,14 @@
                 <artifactId>logstash-logback-encoder</artifactId>
                 <version>7.4</version>
             </dependency>
+            <!-- FORCE docker-java compatible con Docker API 1.44+ -->
+            <dependency>
+                <groupId>com.github.docker-java</groupId>
+                <artifactId>docker-java-bom</artifactId>
+                <version>3.4.1</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
