@@ -13,6 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.core.env.Environment;
 import org.springframework.kafka.config.KafkaListenerEndpointRegistry;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
@@ -32,8 +33,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest
 @ActiveProfiles("test")
 @DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_CLASS)
-class TriageKafkaConsumerTest extends KafkaIntegrationTestBase {
+class TriageValidEventTest extends KafkaIntegrationTestBase {
 
+    @Autowired
+    Environment env;
     @Autowired
     KafkaListenerEndpointRegistry registry;
 
@@ -44,57 +47,80 @@ class TriageKafkaConsumerTest extends KafkaIntegrationTestBase {
 
     @BeforeEach
     void setUp() {
-        Map<String, Object> props = KafkaTestUtils.producerProps(kafka.getBootstrapServers());
-        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.StringSerializer.class);
-        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, org.springframework.kafka.support.serializer.JsonSerializer.class);
+
+
+        Map<String, Object> props =
+                KafkaTestUtils.producerProps(kafka.getBootstrapServers());
+
+        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
+                org.apache.kafka.common.serialization.StringSerializer.class);
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
+                org.springframework.kafka.support.serializer.JsonSerializer.class);
 
         producer = new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(props));
 
         registry.getListenerContainers()
-                .forEach(container -> ContainerTestUtils.waitForAssignment(container, 1));
+                .forEach(container -> ContainerTestUtils.waitForAssignment(container, container.getContainerProperties().getTopics().length));
+
+
     }
 
     @Test
-    void consumedInputEventEmitsDecisionMadeEvent() throws Exception {
+    void validEvent_isAccepted_andDecisionEmitted() throws Exception {
 
         Consumer<String, String> consumer = decisionMadeConsumer();
 
+        String eventId = UUID.randomUUID().toString();
+        String inputId = UUID.randomUUID().toString();
+
         InputReceivedV1 input = new InputReceivedV1(
-                "input-123", "email", "subject", "text", "from@test", 1730000000000L
+                inputId,
+                "email",
+                "subject",
+                "hello world",
+                "from@test",
+                System.currentTimeMillis()
         );
 
         EventEnvelope<InputReceivedV1> envelope = new EventEnvelope<>(
-                "event-123",
+                eventId,
                 "triagemate.ingest.input-received",
                 1,
-                Instant.parse("2025-01-01T00:00:00Z"),
-                new EventEnvelope.Producer("triagemate-ingest", "test"),
+                Instant.now(),
+                new EventEnvelope.Producer("triagemate-ingest", "it-test"),
                 new EventEnvelope.Trace("req-1", "corr-1", null),
                 input,
                 Map.of()
         );
 
-        producer.send("triagemate.ingest.input-received.v1", input.inputId(), envelope).get();
+        registry.getListenerContainers().forEach(c ->
+                System.out.println("assigned: " + c.getAssignedPartitions())
+        );
+
+
+        producer.send("triagemate.ingest.input-received.v1", inputId, envelope).get();
 
         var records = KafkaTestUtils.getRecords(consumer, Duration.ofSeconds(10));
-        assertThat(records.count()).isGreaterThan(0);
+        assertThat(records.count()).isEqualTo(1);
 
-        var decisionRecord = records.iterator().next();
+        var record = records.iterator().next();
         EventEnvelope<?> decisionEnvelope =
-                objectMapper.readValue(decisionRecord.value(), EventEnvelope.class);
+                objectMapper.readValue(record.value(), EventEnvelope.class);
 
         DecisionMadeV1 decision =
                 objectMapper.convertValue(decisionEnvelope.payload(), DecisionMadeV1.class);
 
         assertThat(decisionEnvelope.eventType())
                 .isEqualTo("triagemate.triage.decision-made");
+
         assertThat(decisionEnvelope.eventVersion()).isEqualTo(1);
-        assertThat(decision.inputId()).isEqualTo("input-123");
+        assertThat(decision.inputId()).isEqualTo(inputId);
+        assertThat(decisionEnvelope.eventId()).isNotBlank();
     }
 
-
     private Consumer<String, String> decisionMadeConsumer() {
-        String groupId = "triage-test-consumer-" + UUID.randomUUID();
+
+        String groupId = "triage-valid-it-" + UUID.randomUUID();
 
         Map<String, Object> props =
                 KafkaTestUtils.consumerProps(kafka.getBootstrapServers(), groupId, "false");
@@ -102,6 +128,7 @@ class TriageKafkaConsumerTest extends KafkaIntegrationTestBase {
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+
 
         var consumer =
                 new DefaultKafkaConsumerFactory<String, String>(props).createConsumer();
@@ -115,4 +142,7 @@ class TriageKafkaConsumerTest extends KafkaIntegrationTestBase {
 
         return consumer;
     }
+
+
+
 }

@@ -29,6 +29,12 @@
 			<groupId>com.triagemate</groupId>
 			<artifactId>triagemate-contracts</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>com.triagemate</groupId>
+			<artifactId>triagemate-test-support</artifactId>
+			<scope>test</scope>
+		</dependency>
+
 
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

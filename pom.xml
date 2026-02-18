@@ -25,6 +25,7 @@
         <module>triagemate-ingest</module>
         <module>triagemate-triage</module>
         <module>triagemate-contracts</module>
+        <module>triagemate-test-support</module>
     </modules>
 
     <dependencyManagement>
@@ -32,6 +33,11 @@
             <dependency>
                 <groupId>com.triagemate</groupId>
                 <artifactId>triagemate-contracts</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.triagemate</groupId>
+                <artifactId>triagemate-test-support</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

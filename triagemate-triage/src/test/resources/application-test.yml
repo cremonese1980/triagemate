@@ -2,6 +2,7 @@ spring:
   application:
     name: triagemate-triage
   kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     consumer:
       group-id: triagemate-triage-test
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
@@ -10,7 +11,7 @@ spring:
       auto-offset-reset: earliest
 
     listener:
-      ack-mode: MANUAL
+      concurrency: 3
 
     properties:
       spring.json.trusted.packages: com.triagemate.contracts.*
@@ -24,3 +25,6 @@ triagemate:
       decision-made: triagemate.triage.decision-made.v1
     consumer:
       group-id: triagemate-triage-test
+      retry:
+        backoff-ms: 200
+        max-retries: 2

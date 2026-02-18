@@ -3,6 +3,7 @@ package com.triagemate.ingest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.triagemate.contracts.events.EventEnvelope;
 import com.triagemate.contracts.events.v1.InputReceivedV1;
+import com.triagemate.testsupport.KafkaIntegrationTestBase;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.jupiter.api.Test;
@@ -13,6 +14,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.test.utils.KafkaTestUtils;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.time.Duration;
 import java.util.Map;
@@ -20,6 +22,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@ActiveProfiles("test")
 class IngestKafkaIntegrationTest extends KafkaIntegrationTestBase {
 
     @Autowired TestRestTemplate rest;

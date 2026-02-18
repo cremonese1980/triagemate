@@ -6,6 +6,7 @@ import com.triagemate.triage.control.decision.DecisionContext;
 import com.triagemate.triage.control.decision.DecisionContextFactory;
 import com.triagemate.triage.control.decision.DecisionResult;
 import com.triagemate.triage.control.decision.DecisionService;
+import com.triagemate.triage.exception.InvalidEventException;
 import com.triagemate.triage.idempotency.EventIdIdempotencyGuard;
 import com.triagemate.triage.control.routing.DecisionRouter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -14,8 +15,12 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
+import jakarta.validation.Validator;
+import jakarta.validation.ConstraintViolation;
+
+
+import java.util.Set;
 
 import static net.logstash.logback.argument.StructuredArguments.kv;
 
@@ -28,36 +33,38 @@ public class InputReceivedConsumer {
     private final DecisionRouter decisionRouter;
     private final EventIdIdempotencyGuard idempotencyGuard;
     private final MeterRegistry meterRegistry;
+    private final Validator validator;
 
     public InputReceivedConsumer(
             DecisionContextFactory decisionContextFactory,
             DecisionService decisionService,
             DecisionRouter decisionRouter,
             EventIdIdempotencyGuard idempotencyGuard,
-            MeterRegistry meterRegistry
+            MeterRegistry meterRegistry,
+            Validator validator
     ) {
         this.decisionContextFactory = decisionContextFactory;
         this.decisionService = decisionService;
         this.decisionRouter = decisionRouter;
         this.idempotencyGuard = idempotencyGuard;
         this.meterRegistry = meterRegistry;
+        this.validator = validator;
     }
 
     @KafkaListener(
             topics = "${triagemate.kafka.topics.input-received}",
             groupId = "${triagemate.kafka.consumer.group-id}"
     )
-    public void onMessage(
-            ConsumerRecord<String, EventEnvelope<?>> record,
-            Acknowledgment ack
-    ) {
+    public void onMessage(ConsumerRecord<String, EventEnvelope<?>> record) {
+
         EventEnvelope<?> envelope = record.value();
 
         if (envelope == null) {
             log.warn("Received null envelope", kv("requestId", null), kv("correlationId", null), kv("eventId", null));
-            ack.acknowledge();
             return;
         }
+
+        validate(envelope);
 
         if (idempotencyGuard.isDuplicate(envelope.eventId())) {
             log.info(
@@ -67,7 +74,7 @@ public class InputReceivedConsumer {
                     kv("eventId", envelope.eventId()),
                     kv("decisionOutcome", "DUPLICATE")
             );
-            ack.acknowledge();
+
             return;
         }
 
@@ -90,7 +97,16 @@ public class InputReceivedConsumer {
                 kv("decisionOutcome", result.outcome().name())
         );
 
-        ack.acknowledge();
+    }
+
+    private void validate(EventEnvelope<?> envelope){
+
+        Set<ConstraintViolation<EventEnvelope<?>>> violations =
+                validator.validate(envelope);
+
+        if (!violations.isEmpty()) {
+            throw new InvalidEventException("Invalid event envelope: " + violations);
+        }
     }
 
     private String traceValue(EventEnvelope<?> envelope, String key) {
