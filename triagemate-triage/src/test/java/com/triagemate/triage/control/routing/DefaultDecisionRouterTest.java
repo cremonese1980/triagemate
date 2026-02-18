@@ -3,6 +3,7 @@ package com.triagemate.triage.control.routing;
 import com.triagemate.triage.control.decision.DecisionContext;
 import com.triagemate.triage.control.decision.DecisionOutcome;
 import com.triagemate.triage.control.decision.DecisionResult;
+import com.triagemate.triage.exception.RetrIableDecisionException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -69,7 +70,7 @@ class DefaultDecisionRouterTest {
         DecisionResult result = DecisionResult.of(DecisionOutcome.RETRY, "retry-later", Map.of());
 
         assertThrows(
-                RetryableDecisionException.class,
+                RetrIableDecisionException.class,
                 () -> router.route(result, context)
         );
 

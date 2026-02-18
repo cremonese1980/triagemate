@@ -19,6 +19,7 @@ public class DefaultDecisionService implements DecisionService {
 
     @Override
     public DecisionResult decide(DecisionContext<?> context) {
+
         // Step 1: Policy evaluation
         for (Policy policy : policies) {
             PolicyResult policyResult = policy.evaluate(context);
