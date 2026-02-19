@@ -1,0 +1,8 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/triagemate
+    username: triagemate
+    password: triagemate
+logging:
+  level:
+    org.springframework.boot.autoconfigure.jdbc: DEBUG
