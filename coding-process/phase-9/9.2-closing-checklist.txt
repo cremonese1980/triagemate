@@ -1,0 +1,126 @@
+✅ PHASE 9.2 — CLOSING CHECKLIST
+🔹 BLOCCO 1 — 9.2.e Deserialization Hardening (B)
+1.1 Verifica configurazione Kafka
+
+ ErrorHandlingDeserializer realmente configurato
+
+ Delegate deserializer correttamente impostato
+
+ Nessun container shutdown su deserialization error
+
+1.2 Codice listener
+
+ @Payload(required = false)
+
+ event == null guard presente
+
+ Logging strutturato con topic + offset + key
+
+ Nessun throw che propaghi al container
+
+1.3 Test automatici nuovi
+
+ Test malformed JSON → listener non crasha
+
+ Test null payload → skip + log
+
+ Test offset advance (no retry loop)
+
+ Test container alive dopo errore
+
+1.4 Verifica manuale (docker)
+
+ Pubblicare JSON troncato
+
+ Verificare che:
+
+container rimane UP
+
+nessuna decision prodotta
+
+log chiaro
+
+offset avanza
+
+🔹 BLOCCO 2 — Race Condition Idempotency (A)
+2.1 Pattern corretto
+
+ Insert-first pattern
+
+ Catch DataIntegrityViolationException
+
+ No reliance solo su existsByEventId
+
+2.2 Test concorrenza
+
+ Due thread concorrenti stesso eventId
+
+ Solo una decision emessa
+
+ Una sola riga in processed_events
+
+ Nessuna eccezione non gestita
+
+2.3 Verifica docker multi-consumer
+
+ 3 consumer attivi
+
+ Duplicate publish
+
+ Una sola decision output
+
+🔹 BLOCCO 3 — Verification Plan (9.2.1 → 9.2.5 nel doc)
+
+ Tutti i test automatici previsti nel 9.2.md implementati
+
+ Coverage reale del nuovo codice
+
+ No regression sui test esistenti
+
+ CI GitHub green
+
+🔹 BLOCCO 4 — Manual Pre-Prod Validation (docker profile)
+
+ Cold start verification
+
+ Duplicate replay verification
+
+ Malformed JSON verification
+
+ Restart mid-processing verification
+
+ DB state consistency post-restart
+
+🔹 BLOCCO 5 — Formal Closure
+
+ State marker aggiornato a DONE
+
+ README aggiornato (idempotency + hardening)
+
+ ADR aggiornato
+
+ phase9.md aggiornato
+
+ v0.9.2 tag creato
+
+ Squash pulito della branch
+
+ PR merged
+
+🏁 Condizione per dichiarare 9.2 DONE
+
+Sistema deve essere:
+
+Duplicate-safe
+
+Restart-safe
+
+Deserialization-safe
+
+Race-safe
+
+Test-covered
+
+CI-green
+
+Docker-verified

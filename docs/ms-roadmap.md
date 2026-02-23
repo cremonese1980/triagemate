@@ -202,11 +202,19 @@ Make Phase 7 pipeline safe under failure, overload, and real ops constraints.
 - **Replay strategy** beyond "NoOp" (operational workflow + minimal persistence hooks)
 - **Observability hardening** (metrics, structured audit trails, alertable signals)
 
+### Sub-phases (delivered)
+
+#### PHASE 8.1 — In-Memory Idempotency
+
+- Stopgap idempotency guard (ConcurrentHashMap)
+- Duplicate detection
+- Basic replay hooks
+
 ### Outcome
 
 Failure-aware, production-safe pipelines.
 
-**⏭ Status: Planned**
+**🟡 Status: IN PROGRESS** (8.1 done, DLQ/retry pending)
 
 ---
 
@@ -223,51 +231,74 @@ Persist the operational brain of the system.
 - Decision timeline
 - Input → decision → outcome
 
+### Sub-phases
+
+#### PHASE 9.1 — Runtime Stabilization (Docker + DB wiring)
+
+- PostgreSQL integration
+- Profile discipline (dev/docker/test)
+- Cold-start verification
+- Health indicators
+
+**✅ Status: DONE** (v0.9.1)
+
+#### PHASE 9.2 — Durable Idempotency
+
+- `processed_events` table
+- DB-backed idempotency guard
+- Race-condition validation
+- Restart-safe duplicate detection
+
+**🟡 Status: IN PROGRESS**
+
 ### Outcome
 
-Queryable, auditable decision memory.
+Restart-safe, duplicate-safe pipeline with persistent event memory.
 
-**⏭ Status: Planned**
+**🟡 Status: IN PROGRESS** (9.1 done, 9.2 active)
 
 ---
 
-## PHASE 10 — Advanced Messaging & Streaming
+## PHASE 10 — Transactional Outbox Pattern
 
 ### Objective
 
-Move from "Kafka works" to "Kafka used correctly".
+Eliminate dual-write risk and achieve consistency-safe event publication.
 
 ### Concepts
 
-- Idempotent consumers
-- Ordering & keys
-- Replay strategies
-- DLQ consumers
+- Dual-write elimination
+- `outbox_events` table
+- Atomic business + outbox transaction
+- Async publisher loop (polling-based)
+- Retry semantics
+- Exactly-once practical guarantees
 
 ### Outcome
 
-Operationally mature event-driven system.
+Consistency-safe event publication. No lost events on crash.
 
-**⏭ Status: Planned**
+**⏭ Status: Planned** (depends on v0.9.2)
 
 ---
 
-## PHASE 11 — Packaging, Deployment & Ops
+## PHASE 11 — Observability & Operational Hardening
 
 ### Objective
 
-Make the system runnable by someone else.
+Make the system production-observable and operationally mature.
 
 ### Concepts
 
-- Docker (multi-stage)
-- docker-compose
-- Environment discipline
-- CI hardening
+- Structured JSON logging (all services)
+- MDC correlation discipline (trace/span propagation)
+- Business + outbox metrics (Prometheus/Micrometer)
+- Health indicators (DB, Kafka, circuit breakers)
+- Backlog guardrails (alert thresholds, auto-backpressure)
 
 ### Outcome
 
-Reproducible local & demo environments.
+Full operational visibility and alertable signals.
 
 **⏭ Status: Planned**
 
@@ -277,20 +308,222 @@ Reproducible local & demo environments.
 
 ### Objective
 
-Introduce AI **only** where it adds value.
+Introduce AI **where it adds value** for intelligent decision support.
+
+**This is the core identity of TriageMate.**
 
 ### Concepts
 
-- Spring AI
-- LLM APIs
-- AI output = untrusted input
-- Approval hooks
+AI is introduced as **decision support**, not blind automation:
+
+- **AI-assisted classification** (error categorization, routing hints)
+- **RAG over Decision Memory** (query "why did we decide X?", grounded in historical data)
+- **Local GPU option** (Ollama/local embeddings) + fallback cloud (OpenAI/Claude)
+- **AI safety gates** (cost/latency budgets, allowlists, audit fields)
+- **Approval hooks** (AI output = untrusted input requiring validation)
+
+### Sub-phases
+
+#### PHASE 12.1 — AI-Assisted Classification
+
+- Spring AI integration
+- LLM API calls (OpenAI/Claude)
+- Cost/latency budgeting
+- Fallback to rule-based logic
+
+#### PHASE 12.2 — RAG over Decision Memory
+
+- Vector embeddings (local or cloud)
+- Semantic search over historical decisions
+- Context-aware decision explanations
+
+#### PHASE 12.3 — Local GPU Support (Optional)
+
+- Ollama integration
+- Local embedding models
+- Offline capability
+
+#### PHASE 12.4 — AI Safety & Governance
+
+- Input sanitization
+- Output validation
+- Cost tracking per decision
+- Audit trail for AI usage
+
+#### PHASE 12.5 — Scale Sanity (Minimal Concurrency)
+
+**Purpose:** Prevent system from exploding under load, without full production hardening.
+
+**Deliverables:**
+- Kafka consumer concurrency config (explicit, documented)
+- Basic rebalance test (2 instances, no data loss)
+- Connection pool sizing (Hikari + Kafka alignment)
+- Graceful shutdown validation
+
+**NOT in scope:** Advanced locking, spike testing, multi-datacenter — that's V2.0.
 
 ### Outcome
 
-AI as a **decision support engine**, not automation.
+AI as a **decision support engine** with operational guardrails.
 
 **⏭ Status: Planned**
+
+---
+
+## PHASE 13 — Decision Versioning & Replay
+
+### Objective
+
+Make decisions auditable, versioned, and replayable for governance.
+
+### Concepts
+
+- Persist full decision artifacts (input snapshot, policy version, outcome)
+- Policy version tracking (semantic versioning)
+- Replay engine (recalculate decisions with current policy)
+- Drift detection (compare old vs new policy outcomes)
+- Explainability persistence (human-readable reasons)
+
+### Outcome
+
+Governance-grade decision engine with replay capability.
+
+**Closes V1.0 scope.**
+
+**⏭ Status: Planned**
+
+---
+
+# 🎯 TRIAGEMATE V1.0 COMPLETION POINT
+
+**TriageMate V1.0 is considered complete at the end of Phase 13.**
+
+At that point the system guarantees:
+
+✅ **Durable idempotency** (Phase 9.2)  
+✅ **Transactional consistency** (Phase 10 — Outbox pattern)  
+✅ **Production-grade observability** (Phase 11)  
+✅ **AI-powered decision support** (Phase 12 — Core identity)  
+✅ **Decision versioning & replay** (Phase 13 — Governance)
+
+**V1.0 is production-ready for:**
+- Single-region deployment
+- Moderate load (thousands of decisions/day)
+- Governance & audit requirements
+- AI-assisted intelligent routing
+
+---
+
+# 🚀 TRIAGEMATE V2.0 (FUTURE)
+
+**Phases 14–18 extend the system into a full distributed governance platform.**
+
+---
+
+## PHASE 14 — Horizontal Scalability & Concurrency Control (HARDCORE)
+
+### Objective
+
+Production-grade horizontal scaling with correctness under extreme load.
+
+### Concepts
+
+- **Multi-instance consumer discipline** (partition ownership, rebalancing)
+- **DB race validation** (concurrent duplicate handling)
+- **SELECT FOR UPDATE SKIP LOCKED** (outbox concurrent publish)
+- **Backpressure tuning** (batch sizing, poll intervals)
+- **Spike simulation** (1000+ events, memory safety)
+- **Resource hardening** (JVM tuning, pool exhaustion prevention)
+
+### Outcome
+
+System scales horizontally to **tens of thousands of decisions/day** with correctness guarantees.
+
+**⏭ Status: V2.0 — Planned**
+
+---
+
+## PHASE 15 — Policy Engine Isolation & Versioned Rule Sets
+
+### Objective
+
+Separate policy logic from execution engine for hot-swappable rule sets.
+
+### Concepts
+
+- Policy DSL or rules engine (Drools/custom)
+- Hot reload of policy versions
+- A/B testing framework
+- Policy simulation sandbox
+
+### Outcome
+
+Non-developers can author and test policies.
+
+**⏭ Status: V2.0 — Planned**
+
+---
+
+## PHASE 16 — Multi-Tenant Governance
+
+### Objective
+
+Support multiple organizations with isolated decision contexts.
+
+### Concepts
+
+- Tenant isolation (DB, Kafka topics)
+- Per-tenant policy versions
+- Tenant-specific AI models
+- Billing & usage tracking
+
+### Outcome
+
+SaaS-ready TriageMate.
+
+**⏭ Status: V2.0 — Planned**
+
+---
+
+## PHASE 17 — Tamper-Proof Audit Ledger
+
+### Objective
+
+Immutable audit trail for regulatory compliance.
+
+### Concepts
+
+- Event sourcing
+- Append-only decision log
+- Cryptographic signing
+- Blockchain integration (optional)
+
+### Outcome
+
+Regulatory-grade audit trail.
+
+**⏭ Status: V2.0 — Planned**
+
+---
+
+## PHASE 18 — Decision Simulation Sandbox
+
+### Objective
+
+Test policies on historical data without affecting production.
+
+### Concepts
+
+- Replay engine at scale
+- What-if analysis
+- Policy impact prediction
+- Drift analytics dashboard
+
+### Outcome
+
+Risk-free policy evolution.
+
+**⏭ Status: V2.0 — Planned**
 
 ---
 
@@ -315,6 +548,8 @@ AI-driven message triage for SMEs.
 2. Learning depth > speed
 3. Refactors are intentional
 4. **This file is the single source of truth**
+5. **V1.0 scope is frozen at Phase 13**
+6. **V2.0 phases are aspirational, not committed**
 
 ---
 
@@ -326,3 +561,10 @@ AI-driven message triage for SMEs.
 | 🟡 | IN PROGRESS | Active work |
 | 🔴 | CORE | Critical current focus |
 | ⏭ | Planned | Future work |
+
+---
+
+**Document Version:** 2.0  
+**Last Updated:** 2026-02-24  
+**V1.0 Target Completion:** Phase 13  
+**Next Review:** After Phase 10 completion

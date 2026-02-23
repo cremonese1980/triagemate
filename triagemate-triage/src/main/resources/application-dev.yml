@@ -3,6 +3,19 @@ spring:
     url: jdbc:postgresql://localhost:5432/triagemate
     username: triagemate
     password: triagemate
+
+  kafka:
+    bootstrap-servers: localhost:29092
+
 logging:
   level:
     org.springframework.boot.autoconfigure.jdbc: DEBUG
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,env
+  endpoint:
+    env:
+      show-values: always

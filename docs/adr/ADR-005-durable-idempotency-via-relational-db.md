@@ -65,6 +65,29 @@ Rejected:
 - Enables horizontal scaling.
 - Enables crash safety.
 - Aligns with enterprise-grade architecture.
+---
+
+## Implementation Notes (Final)
+
+```markdown
+## Final Implementation (v0.9.2)
+
+The initial exists+save approach was replaced with an atomic
+insert-first pattern using PostgreSQL unique constraints.
+
+Key decisions:
+
+- Idempotency handled at Kafka listener boundary
+- Business logic remains pure (no idempotency inside processor/router)
+- INSERT ... ON CONFLICT eliminates race conditions
+- Testcontainers PostgreSQL used in integration tests
+- H2 removed from Kafka integration tests
+
+Trade-off acknowledged:
+Claim-first semantics may drop output on crash before publish.
+Resolved in Phase 10 (Transactional Outbox).
+```
+
 
 ## Follow-up
 
