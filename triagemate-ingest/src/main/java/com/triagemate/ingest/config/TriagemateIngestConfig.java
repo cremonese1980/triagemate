@@ -14,8 +14,8 @@ public class TriagemateIngestConfig {
 
     @Bean
     RestClient infoRestClient(
-            @Value("${triagemate-triage.base-url}") String baseUrl,
-            @Value("${triagemate-triage.timeout-ms}") int timeoutMs
+            @Value("${triagemate.base-url}") String baseUrl,
+            @Value("${triagemate.timeout-ms}") int timeoutMs
     ) {
         var rf = new SimpleClientHttpRequestFactory();
         rf.setConnectTimeout(Duration.ofMillis(timeoutMs));

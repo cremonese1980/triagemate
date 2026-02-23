@@ -32,6 +32,47 @@ Triagemate is an event-driven decision system: ingest receives HTTP input, triag
                                             └──────────────┘
 ```
 
+🧠 Durable Idempotency (Phase 9.2)
+
+## Durable Idempotency (Phase 9.2)
+
+TriageMate implements **database-backed idempotency** to guarantee
+duplicate-safe and restart-safe processing.
+
+### Strategy
+
+- Table: `processed_events`
+- Unique constraint on `event_id`
+- Atomic insert-first pattern:
+```sql
+INSERT INTO processed_events (event_id, processed_at)
+VALUES (?, ?)
+ON CONFLICT (event_id) DO NOTHING
+RETURNING 1;
+```
+
+### Processing Order (claim-first)
+
+1. Validate message
+2. Attempt atomic claim (tryMarkProcessed)
+3. If already claimed → short-circuit
+4. Execute decision logic
+5. Publish decision event
+
+### Guarantees
+
+* Duplicate-safe across restarts
+* Race-safe across concurrent consumers
+* No in-memory state
+* PostgreSQL enforces uniqueness
+
+### Known Limitation (resolved in Phase 10)
+
+If the application crashes after claim but before publish,  
+the decision event may not be emitted.
+
+This will be eliminated in Phase 10 using the Transactional Outbox pattern.
+
 ## Event flow
 1. Client calls `POST /api/ingest/messages`.
 2. Ingest emits `triagemate.ingest.input-received.v1` with `EventEnvelope`.

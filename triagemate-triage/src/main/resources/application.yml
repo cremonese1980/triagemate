@@ -4,6 +4,8 @@ spring:
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    admin:
+      fail-fast: true
 
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
@@ -50,4 +52,9 @@ triagemate:
         backoff-ms: 1000
         max-retries: 3
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
 
