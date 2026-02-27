@@ -3,7 +3,7 @@ package com.triagemate.triage.control.routing;
 import com.triagemate.triage.control.decision.DecisionContext;
 import com.triagemate.triage.control.decision.DecisionOutcome;
 import com.triagemate.triage.control.decision.DecisionResult;
-import com.triagemate.triage.exception.RetrIableDecisionException;
+import com.triagemate.triage.exception.RetryableDecisionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +35,7 @@ public class DefaultDecisionRouter implements DecisionRouter {
         decisionOutcomePublisher.publish(result, context);
 
         if (result.outcome() == DecisionOutcome.RETRY) {
-            throw new RetrIableDecisionException(
+            throw new RetryableDecisionException(
                     "Retry requested for eventId=" + context.eventId()
                             + ", eventType=" + context.eventType()
             );

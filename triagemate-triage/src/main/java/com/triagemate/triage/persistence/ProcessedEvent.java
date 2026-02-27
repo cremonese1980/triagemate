@@ -6,11 +6,8 @@ import java.util.Objects;
 
 @Entity
 @Table(
-        name = "processed_events"
-        ,
-        uniqueConstraints = {
-                @UniqueConstraint(name = "uk_event_id", columnNames = "event_id")
-        }
+        name = "processed_events",
+        uniqueConstraints = @UniqueConstraint(name = "uk_event_id", columnNames = "event_id")
 )
 public class ProcessedEvent {
 
@@ -36,7 +33,6 @@ public class ProcessedEvent {
     public String getEventId() {
         return eventId;
     }
-
 
     public Instant getProcessedAt() {
         return processedAt;

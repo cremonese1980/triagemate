@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | ⏭️ NEXT |
+| **Status** | DONE |
 | **Priority** | 🔥 HIGH |
 | **Dependencies** | Phase 7 (Core Decision Flow) |
 
@@ -320,12 +320,12 @@ Use **Testcontainers Kafka**.
 
 | Criterion | Status |
 |-----------|--------|
-| Retryable failures are retried | ⏳ |
-| Non-retryable failures are not retried | ⏳ |
-| Poison messages end in DLT | ⏳ |
-| Retry behavior configurable | ⏳ |
-| Structured logs show failure lifecycle | ⏳ |
-| All tests green locally and CI | ⏳ |
+| Retryable failures are retried | DONE |
+| Non-retryable failures are not retried | DONE |
+| Poison messages end in DLT | DONE |
+| Retry behavior configurable | DONE |
+| Structured logs show failure lifecycle | DONE |
+| All tests green locally and CI | DONE |
 
 ---
 

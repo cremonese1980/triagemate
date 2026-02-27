@@ -52,6 +52,15 @@ triagemate:
         backoff-ms: 1000
         max-retries: 3
 
+  outbox:
+    batch-size: 20
+    max-attempts: 3
+    base-backoff-millis: 1000
+    max-backoff-millis: 300000
+    poll-interval-ms: 2000
+    initial-delay-ms: 2000
+
+
 management:
   endpoints:
     web:

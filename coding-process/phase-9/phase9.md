@@ -1,11 +1,11 @@
 # 🔵 PHASE 9 — Persistence Infrastructure Layer
 
 ## STATE
-STATUS: NOT_STARTED
+STATUS: DONE
 OWNER: gabriele
-BRANCH: feat/phase-9-persistence-infra
+BRANCH: feat/phase-10-transactional-outbox
 DEPENDS_ON: v0.8.1
-LAST_UPDATED: 2026-02-19
+LAST_UPDATED: 2026-03-05
 
 ---
 

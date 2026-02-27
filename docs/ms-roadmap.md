@@ -214,7 +214,7 @@ Make Phase 7 pipeline safe under failure, overload, and real ops constraints.
 
 Failure-aware, production-safe pipelines.
 
-**🟡 Status: IN PROGRESS** (8.1 done, DLQ/retry pending)
+**✅ Status: DONE** (v0.8.2 — error classification, retry/backoff, DLT, structured logging)
 
 ---
 
@@ -249,13 +249,13 @@ Persist the operational brain of the system.
 - Race-condition validation
 - Restart-safe duplicate detection
 
-**🟡 Status: IN PROGRESS**
+**✅ Status: DONE** (v0.9.2)
 
 ### Outcome
 
 Restart-safe, duplicate-safe pipeline with persistent event memory.
 
-**🟡 Status: IN PROGRESS** (9.1 done, 9.2 active)
+**✅ Status: DONE** (v0.9.2)
 
 ---
 
@@ -278,7 +278,7 @@ Eliminate dual-write risk and achieve consistency-safe event publication.
 
 Consistency-safe event publication. No lost events on crash.
 
-**⏭ Status: Planned** (depends on v0.9.2)
+**✅ Status: DONE** (v0.10.0)
 
 ---
 
@@ -565,6 +565,6 @@ AI-driven message triage for SMEs.
 ---
 
 **Document Version:** 2.0  
-**Last Updated:** 2026-02-24  
-**V1.0 Target Completion:** Phase 13  
-**Next Review:** After Phase 10 completion
+**Last Updated:** 2026-03-05
+**V1.0 Target Completion:** Phase 13
+**Next Review:** After Phase 11 completion

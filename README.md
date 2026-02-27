@@ -66,12 +66,19 @@ RETURNING 1;
 * No in-memory state
 * PostgreSQL enforces uniqueness
 
-### Known Limitation (resolved in Phase 10)
+### Transactional Outbox (Phase 10)
 
-If the application crashes after claim but before publish,  
-the decision event may not be emitted.
+Decision events are published via the **Transactional Outbox pattern**,
+eliminating the dual-write crash window:
 
-This will be eliminated in Phase 10 using the Transactional Outbox pattern.
+1. Business transaction atomically writes `processed_events` + `outbox_events`
+2. Async `OutboxPublisher` polls PENDING rows and publishes to Kafka
+3. `FOR UPDATE SKIP LOCKED` ensures multi-instance safety
+4. Exponential backoff retry on publish failure (configurable max attempts)
+5. No direct `kafkaTemplate.send()` inside business transactions
+
+This guarantees no event loss on crash: PENDING rows survive restarts
+and are published when the publisher resumes.
 
 ## Event flow
 1. Client calls `POST /api/ingest/messages`.
