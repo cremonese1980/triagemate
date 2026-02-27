@@ -7,6 +7,7 @@ import com.triagemate.testsupport.KafkaIntegrationTestBase;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.test.annotation.DirtiesContext;
@@ -26,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class IdempotencyHappyPathIT  extends KafkaIntegrationTestBase{
 
     @Autowired
-    private KafkaTemplate<String, EventEnvelope<?>> kafkaTemplate;
+    private KafkaTemplate<String, Object> kafkaTemplate;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -34,8 +35,8 @@ class IdempotencyHappyPathIT  extends KafkaIntegrationTestBase{
     @Autowired
     private ObjectMapper objectMapper;
 
-    private static final String INPUT_TOPIC = "triagemate.ingest.input-received.v1";
-    private static final String OUTPUT_TOPIC = "triagemate.triage.decision-made.v1";
+    @Value("${triagemate.kafka.topics.input-received}")
+    private String inputTopic;
 
     @Test
     void should_process_valid_event_and_mark_db() throws Exception {
@@ -56,7 +57,7 @@ class IdempotencyHappyPathIT  extends KafkaIntegrationTestBase{
                 Map.of()
         );
 
-        kafkaTemplate.send(INPUT_TOPIC, eventId, envelope);
+        kafkaTemplate.send(inputTopic, eventId, envelope);
 
         Awaitility.await()
                 .atMost(Duration.ofSeconds(10))
@@ -110,10 +111,10 @@ class IdempotencyHappyPathIT  extends KafkaIntegrationTestBase{
                 );
 
         // Send first time
-        kafkaTemplate.send(INPUT_TOPIC, eventId, envelope);
+        kafkaTemplate.send(inputTopic, eventId, envelope);
 
         // Send duplicate
-        kafkaTemplate.send(INPUT_TOPIC, eventId, envelope);
+        kafkaTemplate.send(inputTopic, eventId, envelope);
 
         Awaitility.await()
                 .atMost(Duration.ofSeconds(10))

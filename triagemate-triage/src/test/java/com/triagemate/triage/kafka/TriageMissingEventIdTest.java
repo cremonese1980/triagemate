@@ -86,9 +86,8 @@ class TriageMissingEventIdTest extends KafkaIntegrationTestBase {
 
         var records = KafkaTestUtils.getRecords(consumer, Duration.ofSeconds(5));
 
-        // 1️⃣ Nessuna decision emessa
+        // No decision emitted for null eventId
         assertThat(records.count()).isEqualTo(0);
-
 
         envelope = new EventEnvelope<>(
                 "", // ← INVALID eventId
@@ -106,11 +105,10 @@ class TriageMissingEventIdTest extends KafkaIntegrationTestBase {
 
         records = KafkaTestUtils.getRecords(consumer, Duration.ofSeconds(5));
 
-        // 1️⃣ Nessuna decision emessa
+        // No decision emitted for empty eventId
         assertThat(records.count()).isEqualTo(0);
 
-        // 2️⃣ Nessun retry loop (se ci fosse, dopo 5s vedresti riprocessamenti)
-        // implicitamente verificato perché non arrivano decisioni duplicate
+        // No retry loop — implicitly verified: no duplicate decisions arrive within 5s
     }
 
     private Consumer<String, String> decisionMadeConsumer() {

@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 import jakarta.validation.Validator;
 import jakarta.validation.ConstraintViolation;
 
@@ -41,6 +42,16 @@ public class InputReceivedConsumer {
         this.idempotencyGuard = idempotencyGuard;
     }
 
+    /**
+     * Atomic outbox flow: a single DB transaction wraps:
+     * 1. tryMarkProcessed() — idempotency claim (INSERT ON CONFLICT DO NOTHING)
+     * 2. process() — decision logic (pure, no DB writes)
+     * 3. route() → OutboxDecisionOutcomePublisher.publish() — INSERT into outbox_events
+     *
+     * If any step fails, the entire transaction rolls back: no orphan claims, no lost events.
+     * The outbox publisher (async, outside this TX) polls and publishes to Kafka.
+     */
+    @Transactional
     @KafkaListener(
             topics = "${triagemate.kafka.topics.input-received}",
             groupId = "${triagemate.kafka.consumer.group-id}"
@@ -56,6 +67,7 @@ public class InputReceivedConsumer {
 
         validate(envelope);
 
+        // Atomic: idempotency claim + outbox write in the same @Transactional boundary
         if (!idempotencyGuard.tryMarkProcessed(envelope.eventId())) {
             return; // duplicate, stop immediately
         }

@@ -3,14 +3,14 @@
 ## 📊 STATE
 
 ```yaml
-Status:       NOT_STARTED
+Status:       DONE
 Phase:        10
 Change ID:    TM-10
-Stage:        A  # A=Design | B=Change Design | C=Implementation | D=Verification | E=Done
+Stage:        E  # A=Design | B=Change Design | C=Implementation | D=Verification | E=Done
 Owner:        Gabriele
-Branch:       feat/phase-10-outbox-pattern
+Branch:       feat/phase-10-transactional-outbox
 Depends On:   v0.9.2
-Last Updated: 2026-02-24
+Last Updated: 2026-03-05
 Target Tag:   v0.10.0
 
 Goal:
@@ -20,23 +20,21 @@ Goal:
   - Prepare for horizontal scaling
 
 Applied Changes:
-  - none
+  - TM-10.1 (schema + entity + repository)
+  - TM-10.2 (publisher + orchestrator refactor)
 
 Stabilized Changes:
-  - none
+  - TM-10.1, TM-10.2
 
-Pending Verification:
-  - outbox persistence + publish loop
-  - correctness under Kafka failures
-  - no direct Kafka publish inside business transaction
+Pending Verification: none
 
 Tests Status:
-  unit:        pending
-  integration: pending
-  manual:      pending
+  unit:        passing
+  integration: passing (5 test classes)
+  manual:      passing
 
-DoD Status:           not_met
-Last Green Commit:    v0.9.2
+DoD Status:           met
+Last Green Commit:    HEAD
 FRP Active:           false
 ```
 

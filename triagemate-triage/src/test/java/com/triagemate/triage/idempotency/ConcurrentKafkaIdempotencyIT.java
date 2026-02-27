@@ -6,6 +6,7 @@ import com.triagemate.testsupport.KafkaIntegrationTestBase;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.test.annotation.DirtiesContext;
@@ -24,11 +25,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_CLASS)
 class ConcurrentKafkaIdempotencyIT extends KafkaIntegrationTestBase {
 
-    private static final String INPUT_TOPIC =
-            "triagemate.ingest.input-received.v1";
+    @Value("${triagemate.kafka.topics.input-received}")
+    private String inputTopic;
 
     @Autowired
-    private KafkaTemplate<String, EventEnvelope<InputReceivedV1>> kafkaTemplate;
+    private KafkaTemplate<String, Object> kafkaTemplate;
 
     @Autowired
     private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
@@ -73,7 +74,7 @@ class ConcurrentKafkaIdempotencyIT extends KafkaIntegrationTestBase {
                 try {
                     ready.countDown();
                     start.await();
-                    kafkaTemplate.send(INPUT_TOPIC, eventId, envelope).get();
+                    kafkaTemplate.send(inputTopic, eventId, envelope).get();
                 } catch (Exception ignored) {
                 }
             });

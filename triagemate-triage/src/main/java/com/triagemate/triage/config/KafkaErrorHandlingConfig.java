@@ -1,13 +1,15 @@
 package com.triagemate.triage.config;
 
 import com.triagemate.triage.exception.InvalidEventException;
-import com.triagemate.triage.exception.RetrIableDecisionException;
+import com.triagemate.triage.exception.RetryableDecisionException;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.kafka.core.KafkaOperations;
+import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.util.backoff.FixedBackOff;
 
@@ -18,26 +20,29 @@ public class KafkaErrorHandlingConfig {
 
     private final TriagemateKafkaProperties triagemateKafkaProperties;
 
-    @Autowired
     public KafkaErrorHandlingConfig(TriagemateKafkaProperties triagemateKafkaProperties) {
         this.triagemateKafkaProperties = triagemateKafkaProperties;
     }
 
     @Bean
-    public DefaultErrorHandler kafkaErrorHandler() {
+    public DefaultErrorHandler kafkaErrorHandler(KafkaOperations<String, Object> kafkaTemplate) {
+
+        var recoverer = new DeadLetterPublishingRecoverer(kafkaTemplate,
+                (ConsumerRecord<?, ?> record, Exception ex) ->
+                        new TopicPartition(record.topic() + ".dlt", record.partition()));
 
         var backOff = new FixedBackOff(
                 triagemateKafkaProperties.consumer().retry().backoffMs(),
                 triagemateKafkaProperties.consumer().retry().maxRetries()
         );
 
-        log.debug("Retry config → backoff={}, maxRetries={}",
+        log.debug("Retry config: backoff={}ms, maxRetries={}",
                 triagemateKafkaProperties.consumer().retry().backoffMs(),
                 triagemateKafkaProperties.consumer().retry().maxRetries());
 
-        var handler = new DefaultErrorHandler(backOff);
+        var handler = new DefaultErrorHandler(recoverer, backOff);
 
-        handler.addRetryableExceptions(RetrIableDecisionException.class);
+        handler.addRetryableExceptions(RetryableDecisionException.class);
         handler.addNotRetryableExceptions(InvalidEventException.class);
 
         handler.setRetryListeners((ConsumerRecord<?, ?> record, Exception ex, int deliveryAttempt) -> {

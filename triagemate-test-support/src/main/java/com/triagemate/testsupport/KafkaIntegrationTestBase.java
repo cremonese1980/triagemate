@@ -22,7 +22,7 @@ public abstract class KafkaIntegrationTestBase {
             ).withEnv("KAFKA_AUTO_CREATE_TOPICS_ENABLE", "true");
 
     @Container
-    protected static org.testcontainers.containers.PostgreSQLContainer<?> postgres =
+    protected static PostgreSQLContainer<?> postgres =
             new PostgreSQLContainer<>("postgres:16-alpine")
                     .withDatabaseName("triagemate_test")
                     .withUsername("test")
@@ -33,8 +33,10 @@ public abstract class KafkaIntegrationTestBase {
 
         // Kafka
         r.add("spring.kafka.bootstrap-servers", kafka::getBootstrapServers);
-        r.add("triagemate.kafka.topics.input-received-v1",
+        r.add("triagemate.kafka.topics.input-received",
                 () -> "triagemate.ingest.input-received.v1");
+        r.add("triagemate.kafka.topics.decision-made",
+                () -> "triagemate.triage.decision-made.v1");
 
         // Postgres
         r.add("spring.datasource.url", postgres::getJdbcUrl);
