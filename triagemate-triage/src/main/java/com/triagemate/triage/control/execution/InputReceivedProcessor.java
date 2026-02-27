@@ -6,41 +6,27 @@ import com.triagemate.triage.control.decision.DecisionContext;
 import com.triagemate.triage.control.decision.DecisionContextFactory;
 import com.triagemate.triage.control.decision.DecisionResult;
 import com.triagemate.triage.control.decision.DecisionService;
-import com.triagemate.triage.idempotency.EventIdIdempotencyGuard;
-import com.triagemate.triage.support.TraceSupport;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
-
-import static net.logstash.logback.argument.StructuredArguments.kv;
 
 @Component
 public class InputReceivedProcessor {
 
-
-    private static final Logger log = LoggerFactory.getLogger(InputReceivedProcessor.class);
-
     private final DecisionContextFactory decisionContextFactory;
     private final DecisionService decisionService;
-    private final EventIdIdempotencyGuard idempotencyGuard;
     private final MeterRegistry meterRegistry;
 
     public InputReceivedProcessor(
             DecisionContextFactory decisionContextFactory,
             DecisionService decisionService,
-            EventIdIdempotencyGuard idempotencyGuard,
             MeterRegistry meterRegistry
     ) {
         this.decisionContextFactory = decisionContextFactory;
         this.decisionService = decisionService;
-        this.idempotencyGuard = idempotencyGuard;
         this.meterRegistry = meterRegistry;
     }
 
-    @Transactional
     public DecisionExecution process(EventEnvelope<?> envelope) {
 
         DecisionContext<InputReceivedV1> context = decisionContextFactory.fromEnvelope(envelope);

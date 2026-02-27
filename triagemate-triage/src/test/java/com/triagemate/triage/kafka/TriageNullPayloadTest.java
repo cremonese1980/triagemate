@@ -77,7 +77,7 @@ class TriageNullPayloadTest extends KafkaIntegrationTestBase {
 
         var records = KafkaTestUtils.getRecords(consumer, Duration.ofSeconds(5));
 
-        // Nessuna decision emessa
+        // No decision emitted
         assertThat(records.count()).isEqualTo(0);
     }
 

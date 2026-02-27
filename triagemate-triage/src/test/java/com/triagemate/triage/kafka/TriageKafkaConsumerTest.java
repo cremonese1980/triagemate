@@ -59,12 +59,15 @@ class TriageKafkaConsumerTest extends KafkaIntegrationTestBase {
 
         Consumer<String, String> consumer = decisionMadeConsumer();
 
+        String eventId = UUID.randomUUID().toString();
+        String inputId = UUID.randomUUID().toString();
+
         InputReceivedV1 input = new InputReceivedV1(
-                "input-123", "email", "subject", "text", "from@test", 1730000000000L
+                inputId, "email", "subject", "text", "from@test", 1730000000000L
         );
 
         EventEnvelope<InputReceivedV1> envelope = new EventEnvelope<>(
-                "event-123",
+                eventId,
                 "triagemate.ingest.input-received",
                 1,
                 Instant.parse("2025-01-01T00:00:00Z"),
@@ -89,7 +92,7 @@ class TriageKafkaConsumerTest extends KafkaIntegrationTestBase {
         assertThat(decisionEnvelope.eventType())
                 .isEqualTo("triagemate.triage.decision-made");
         assertThat(decisionEnvelope.eventVersion()).isEqualTo(1);
-        assertThat(decision.inputId()).isEqualTo("input-123");
+        assertThat(decision.inputId()).isEqualTo(inputId);
     }
 
 

@@ -1,5 +1,7 @@
 package com.triagemate.triage.idempotency;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
@@ -8,6 +10,8 @@ import java.time.Instant;
 
 @Component
 public class JdbcEventIdIdempotencyGuard implements EventIdIdempotencyGuard {
+
+    private static final Logger log = LoggerFactory.getLogger(JdbcEventIdIdempotencyGuard.class);
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -18,7 +22,7 @@ public class JdbcEventIdIdempotencyGuard implements EventIdIdempotencyGuard {
     @Override
     public boolean tryMarkProcessed(String eventId) {
 
-        Integer updated = jdbcTemplate.query(
+        Integer inserted = jdbcTemplate.query(
                 """
                 INSERT INTO processed_events (event_id, processed_at)
                 VALUES (?, ?)
@@ -30,6 +34,11 @@ public class JdbcEventIdIdempotencyGuard implements EventIdIdempotencyGuard {
                 Timestamp.from(Instant.now())
         );
 
-        return updated != null;
+        if (inserted == null) {
+            log.info("Duplicate event detected, skipping: eventId={}", eventId);
+            return false;
+        }
+        log.debug("Event claimed for processing: eventId={}", eventId);
+        return true;
     }
 }

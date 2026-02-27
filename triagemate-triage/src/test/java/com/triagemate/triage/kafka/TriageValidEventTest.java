@@ -13,7 +13,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.core.env.Environment;
 import org.springframework.kafka.config.KafkaListenerEndpointRegistry;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
@@ -35,8 +34,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_CLASS)
 class TriageValidEventTest extends KafkaIntegrationTestBase {
 
-    @Autowired
-    Environment env;
     @Autowired
     KafkaListenerEndpointRegistry registry;
 
@@ -92,11 +89,6 @@ class TriageValidEventTest extends KafkaIntegrationTestBase {
                 input,
                 Map.of()
         );
-
-        registry.getListenerContainers().forEach(c ->
-                System.out.println("assigned: " + c.getAssignedPartitions())
-        );
-
 
         producer.send("triagemate.ingest.input-received.v1", inputId, envelope).get();
 
