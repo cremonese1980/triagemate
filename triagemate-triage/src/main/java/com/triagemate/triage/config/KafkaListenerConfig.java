@@ -10,13 +10,6 @@ import org.springframework.kafka.listener.ContainerProperties;
 @Configuration
 public class KafkaListenerConfig {
 
-//    TODO remove fake bean
-/*    @Bean
-    CommandLineRunner testDs(DataSource dataSource) {
-        return args -> System.out.println("DataSource class = " + dataSource.getClass());
-    }*/
-
-
     @Bean
     public ConcurrentKafkaListenerContainerFactory<Object, Object> kafkaListenerContainerFactory(
             ConcurrentKafkaListenerContainerFactoryConfigurer configurer,
