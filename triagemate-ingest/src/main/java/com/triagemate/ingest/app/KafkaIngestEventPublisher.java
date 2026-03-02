@@ -4,7 +4,6 @@ import com.triagemate.contracts.events.EventEnvelope;
 import com.triagemate.contracts.events.EventEnvelope.Producer;
 import com.triagemate.contracts.events.EventEnvelope.Trace;
 import com.triagemate.contracts.events.v1.InputReceivedV1;
-import com.triagemate.ingest.app.IngestEventPublisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;

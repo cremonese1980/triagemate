@@ -26,7 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class IdempotencyHappyPathIT  extends KafkaIntegrationTestBase{
 
     @Autowired
-    private KafkaTemplate<String, EventEnvelope<?>> kafkaTemplate;
+    private KafkaTemplate<String, Object> kafkaTemplate;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;

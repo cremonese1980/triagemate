@@ -28,7 +28,7 @@ class ConcurrentKafkaIdempotencyIT extends KafkaIntegrationTestBase {
             "triagemate.ingest.input-received.v1";
 
     @Autowired
-    private KafkaTemplate<String, EventEnvelope<InputReceivedV1>> kafkaTemplate;
+    private KafkaTemplate<String, Object> kafkaTemplate;
 
     @Autowired
     private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
