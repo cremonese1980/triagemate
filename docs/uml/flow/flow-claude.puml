@@ -1,0 +1,140 @@
+@startuml triage-flow
+title Triage Module — Event Processing Flow (Phase 9.2)
+
+skinparam sequenceMessageAlign center
+skinparam maxMessageSize 220
+skinparam responseMessageBelowArrow true
+
+participant "Kafka\n(input-received.v1)" as InKafka #LightBlue
+participant "InputReceived\nConsumer" as Consumer
+participant "JdbcEventId\nIdempotencyGuard" as Guard
+database "PostgreSQL\n(processed_events)" as DB #LightYellow
+participant "InputReceived\nProcessor" as Processor
+participant "DecisionContext\nFactory" as Factory
+participant "DefaultDecision\nService" as Service
+participant "Policy[]" as Policy #LightGreen
+participant "CostGuard" as Cost #LightGreen
+participant "DefaultDecision\nRouter" as Router
+participant "KafkaDecisionOutcome\nPublisher" as Publisher
+participant "KafkaTemplate" as KT
+participant "Kafka\n(decision-made.v1)" as OutKafka #LightBlue
+
+== Message Arrival ==
+
+InKafka -> Consumer : onMessage(ConsumerRecord)
+
+alt envelope == null
+    Consumer --> InKafka : return (skip)
+end
+
+Consumer -> Consumer : validate(envelope)\n[Jakarta @NotNull / @NotBlank]
+
+== Idempotency Check (claim-first) ==
+
+Consumer -> Guard : tryMarkProcessed(eventId)
+Guard -> DB : INSERT INTO processed_events\n(event_id, processed_at)\nVALUES (?, ?)\nON CONFLICT (event_id) DO NOTHING\nRETURNING 1
+DB --> Guard : 1 (claimed) / null (duplicate)
+
+alt duplicate (null returned)
+    Guard --> Consumer : false
+    note right of Consumer : Early return\n(duplicate event)
+    Consumer --> InKafka : ack (offset committed)
+else claimed (1 returned)
+    Guard --> Consumer : true
+
+    == Decision Processing ==
+
+    Consumer -> Processor : process(envelope)
+
+    Processor -> Factory : fromEnvelope(envelope)
+    note right of Factory
+        ObjectMapper.convertValue()
+        Extract trace (requestId, correlationId)
+        Build DecisionContext<InputReceivedV1>
+    end note
+    Factory --> Processor : DecisionContext<InputReceivedV1>
+
+    Processor -> Service : decide(context)
+
+    == Step 1: Policy Evaluation ==
+
+    loop for each Policy in policies
+        Service -> Policy : evaluate(context)
+        Policy --> Service : PolicyResult
+        note right of Service
+            if !allowed -> return REJECT
+            (reason = policyResult.reason())
+        end note
+    end
+
+    == Step 2: Cost Evaluation ==
+
+    Service -> Cost : evaluateCost(context)
+    Cost --> Service : CostDecision
+    note right of Service
+        if !allowed -> return REJECT
+        (reason = COST_LIMIT_EXCEEDED)
+    end note
+
+    == Step 3: Default Accept ==
+
+    note right of Service
+        All policies passed
+        Cost within limits
+        -> return ACCEPT
+    end note
+
+    Service --> Processor : DecisionResult\n(ACCEPT / REJECT)
+
+    Processor --> Consumer : DecisionExecution\n(result, context)
+
+    == Routing & Publication ==
+
+    Consumer -> Router : route(result, context)
+
+    Router -> Router : log DecisionLogEntry\n(structured JSON)
+
+    Router -> Publisher : publish(result, context)
+
+    Publisher -> Publisher : Build EventEnvelope<DecisionMadeV1>\n- UUID for decisionEventId\n- Extract inputId from payload\n- Map outcome to priority (P1/P2/P3)\n- Propagate trace (requestId, correlationId)\n- Set causationId = source eventId
+
+    Publisher -> KT : send(topic, inputId, envelope)
+    KT -> OutKafka : produce record
+    OutKafka --> KT : broker ack
+    KT --> Publisher : Future.get() (sync)
+    Publisher --> Router : void
+
+    alt outcome == RETRY
+        Router --> Consumer : throw RetrIableDecisionException
+        note right of Consumer #Pink
+            Kafka error handler retries
+            with FixedBackOff.
+            **Known crash-window:**
+            INSERT already committed,
+            retry will be skipped
+            as duplicate. (Phase 10 Outbox fix)
+        end note
+    else ACCEPT / REJECT / DEFER
+        Router --> Consumer : void
+        Consumer -> Consumer : log "Decision completed"\n(requestId, correlationId,\neventId, outcome)
+        Consumer --> InKafka : ack (offset committed)
+    end
+end
+
+== Phase 10 Refactor Point ==
+
+note over Publisher, KT #FFDDDD
+    **OUTBOX REFACTOR:**
+    Replace KafkaTemplate.send() with
+    OutboxRepository.save(OutboxEntry)
+    inside the same @Transactional that
+    wraps tryMarkProcessed().
+
+    A separate poller/CDC reads the outbox
+    and publishes to Kafka asynchronously.
+
+    Interface seam: DecisionOutcomePublisher
+    (no changes needed in Router)
+end note
+
+@enduml

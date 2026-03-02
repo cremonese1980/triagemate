@@ -1,6 +1,8 @@
 package com.triagemate.triage.persistence;
 
+import com.triagemate.triage.outbox.OutboxStatus;
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
 
 import java.time.Instant;
 import java.util.Objects;
@@ -24,10 +26,12 @@ public class OutboxEvent {
     private String eventType;
 
     @Column(nullable = false, columnDefinition = "jsonb", updatable = false)
+    @JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     private String payload;
 
     @Column(nullable = false)
-    private String status;
+    @Enumerated(EnumType.STRING)
+    private OutboxStatus status;
 
     @Column(name = "publish_attempts", nullable = false)
     private int publishAttempts;
@@ -60,7 +64,7 @@ public class OutboxEvent {
             String aggregateId,
             String eventType,
             String payload,
-            String status,
+            OutboxStatus status,
             Instant createdAt
     ) {
         this.id = id;
@@ -81,7 +85,7 @@ public class OutboxEvent {
     public String getAggregateId() { return aggregateId; }
     public String getEventType() { return eventType; }
     public String getPayload() { return payload; }
-    public String getStatus() { return status; }
+    public OutboxStatus getStatus() { return status; }
     public int getPublishAttempts() { return publishAttempts; }
     public Instant getNextAttemptAt() { return nextAttemptAt; }
     public Instant getCreatedAt() { return createdAt; }
@@ -92,7 +96,7 @@ public class OutboxEvent {
 
     // ===== Package-private setters (used by JDBC repo) =====
 
-    void setStatus(String status) { this.status = status; }
+    void setStatus(OutboxStatus status) { this.status = status; }
     void setPublishAttempts(int publishAttempts) { this.publishAttempts = publishAttempts; }
     void setNextAttemptAt(Instant nextAttemptAt) { this.nextAttemptAt = nextAttemptAt; }
     void setPublishedAt(Instant publishedAt) { this.publishedAt = publishedAt; }

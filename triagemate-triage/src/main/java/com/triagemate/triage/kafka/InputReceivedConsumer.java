@@ -41,6 +41,16 @@ public class InputReceivedConsumer {
         this.idempotencyGuard = idempotencyGuard;
     }
 
+    /**
+     * Claim-first idempotency: the event is claimed in the DB (INSERT ON CONFLICT DO NOTHING)
+     * BEFORE any business logic or Kafka publish. If routing fails after the claim, the event
+     * is permanently marked as processed and Kafka retries will short-circuit as duplicate.
+     * <p>
+     * Known crash-window: if the process crashes between tryMarkProcessed() and route(),
+     * the decision is never emitted but the event is marked as processed.
+     * This is an accepted trade-off for Phase 9.2. Phase 10 (Transactional Outbox) will
+     * eliminate this window by persisting the outgoing event in the same DB transaction.
+     */
     @KafkaListener(
             topics = "${triagemate.kafka.topics.input-received}",
             groupId = "${triagemate.kafka.consumer.group-id}"
@@ -56,6 +66,7 @@ public class InputReceivedConsumer {
 
         validate(envelope);
 
+        // Claim-first: INSERT committed before routing. See Javadoc for crash-window note.
         if (!idempotencyGuard.tryMarkProcessed(envelope.eventId())) {
             return; // duplicate, stop immediately
         }

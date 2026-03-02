@@ -35,6 +35,8 @@ public abstract class KafkaIntegrationTestBase {
         r.add("spring.kafka.bootstrap-servers", kafka::getBootstrapServers);
         r.add("triagemate.kafka.topics.input-received-v1",
                 () -> "triagemate.ingest.input-received.v1");
+        r.add("triagemate.kafka.topics.decision-made",
+                () -> "triagemate.triage.decision-made.v1");
 
         // Postgres
         r.add("spring.datasource.url", postgres::getJdbcUrl);

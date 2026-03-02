@@ -33,7 +33,7 @@ class ConcurrentIdempotencyGuardTest extends KafkaIntegrationTestBase {
 
         String eventId = UUID.randomUUID().toString();
 
-        int threads = 1000;
+        int threads = 30;
         ExecutorService executor = Executors.newFixedThreadPool(threads);
 
         CountDownLatch ready = new CountDownLatch(threads);

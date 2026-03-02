@@ -1,11 +1,13 @@
 package com.triagemate.triage.persistence;
 
+import com.triagemate.triage.outbox.OutboxStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -22,29 +24,30 @@ public class JdbcOutboxRepository {
     public List<OutboxEvent> claimBatch(int batchSize, String instanceId) {
 
         String sql = """
-            WITH cte AS (
-                SELECT id
-                FROM outbox_events
-                WHERE status = 'PENDING'
-                  AND next_attempt_at <= now()
-                ORDER BY created_at
-                LIMIT ?
-                FOR UPDATE SKIP LOCKED
-            )
-            UPDATE outbox_events o
-            SET
-                lock_owner = ?,
-                locked_until = now() + interval '30 seconds'
-            FROM cte
-            WHERE o.id = cte.id
-            RETURNING o.*;
-            """;
+    WITH cte AS (
+        SELECT id
+        FROM outbox_events
+        WHERE status = ?
+          AND next_attempt_at <= now()
+        ORDER BY created_at
+        LIMIT ?
+        FOR UPDATE SKIP LOCKED
+    )
+    UPDATE outbox_events o
+    SET
+        lock_owner = ?,
+        locked_until = now() + interval '30 seconds'
+    FROM cte
+    WHERE o.id = cte.id
+    RETURNING o.*;
+    """;
 
         return jdbcTemplate.query(
                 sql,
                 ps -> {
-                    ps.setInt(1, batchSize);
-                    ps.setString(2, instanceId);
+                    ps.setString(1, OutboxStatus.PENDING.name());
+                    ps.setInt(2, batchSize);
+                    ps.setString(3, instanceId);
                 },
                 new OutboxRowMapper()
         );
@@ -55,14 +58,18 @@ public class JdbcOutboxRepository {
         String sql = """
         UPDATE outbox_events
         SET
-            status = 'PUBLISHED',
+            status = ?,
             published_at = now(),
             lock_owner = null,
             locked_until = null
         WHERE id = ?
         """;
 
-        jdbcTemplate.update(sql, id);
+        jdbcTemplate.update(
+                sql,
+                OutboxStatus.PUBLISHED.name(),
+                id
+        );
     }
 
     public void markFailed(
@@ -86,7 +93,7 @@ public class JdbcOutboxRepository {
         jdbcTemplate.update(
                 sql,
                 publishAttempts,
-                nextAttemptAt,
+                Timestamp.from(nextAttemptAt),
                 truncate(error),
                 id
         );
@@ -97,14 +104,19 @@ public class JdbcOutboxRepository {
         String sql = """
         UPDATE outbox_events
         SET
-            status = 'FAILED',
+            status = ?,
             lock_owner = null,
             locked_until = null,
             last_error = ?
         WHERE id = ?
         """;
 
-        jdbcTemplate.update(sql, truncate(error), id);
+        jdbcTemplate.update(
+                sql,
+                OutboxStatus.FAILED.name(),
+                truncate(error),
+                id
+        );
     }
 
     private String truncate(String error) {
@@ -128,7 +140,7 @@ public class JdbcOutboxRepository {
                     rs.getString("aggregate_id"),
                     rs.getString("event_type"),
                     rs.getString("payload"),
-                    rs.getString("status"),
+                    OutboxStatus.valueOf(rs.getString("status")),
                     rs.getTimestamp("created_at").toInstant()
             );
 

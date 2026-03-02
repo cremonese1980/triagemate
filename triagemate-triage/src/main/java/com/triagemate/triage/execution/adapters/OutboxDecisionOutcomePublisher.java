@@ -1,14 +1,17 @@
 package com.triagemate.triage.execution.adapters;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.triagemate.contracts.events.EventEnvelope;
 import com.triagemate.contracts.events.v1.DecisionMadeV1;
 import com.triagemate.contracts.events.v1.InputReceivedV1;
 import com.triagemate.triage.control.decision.DecisionContext;
 import com.triagemate.triage.control.decision.DecisionResult;
 import com.triagemate.triage.control.routing.DecisionOutcomePublisher;
+import com.triagemate.triage.outbox.OutboxStatus;
+import com.triagemate.triage.persistence.OutboxEvent;
+import com.triagemate.triage.persistence.OutboxEventRepository;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Profile;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -17,29 +20,31 @@ import java.util.Map;
 import java.util.UUID;
 
 @Component
-@Deprecated(forRemoval = true)
-@Profile("legacy-kafka-publisher")
-public class KafkaDecisionOutcomePublisher implements DecisionOutcomePublisher {
+public class OutboxDecisionOutcomePublisher implements DecisionOutcomePublisher {
 
     private static final String DECISION_EVENT_TYPE = "triagemate.triage.decision-made";
     private static final int DECISION_EVENT_VERSION = 1;
 
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final OutboxEventRepository repository;
+    private final ObjectMapper objectMapper;
     private final String topic;
     private final String serviceName;
 
-    public KafkaDecisionOutcomePublisher(
-            KafkaTemplate<String, Object> kafkaTemplate,
+    public OutboxDecisionOutcomePublisher(
+            OutboxEventRepository repository,
+            ObjectMapper objectMapper,
             @Value("${triagemate.kafka.topics.decision-made}") String topic,
             @Value("${spring.application.name}") String serviceName
     ) {
-        this.kafkaTemplate = kafkaTemplate;
+        this.repository = repository;
+        this.objectMapper = objectMapper;
         this.topic = topic;
         this.serviceName = serviceName;
     }
 
     @Override
     public void publish(DecisionResult result, DecisionContext<?> context) {
+
         String decisionEventId = UUID.randomUUID().toString();
         String inputId = extractInputId(context.payload());
 
@@ -72,15 +77,28 @@ public class KafkaDecisionOutcomePublisher implements DecisionOutcomePublisher {
         );
 
         try {
-            kafkaTemplate.send(topic, inputId, envelope).get();
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to publish DecisionMadeV1 to topic " + topic, e);
+            String json = objectMapper.writeValueAsString(envelope);
+
+            OutboxEvent event = new OutboxEvent(
+                    UUID.randomUUID(),
+                    topic,                 // aggregateType = topic (per ora)
+                    inputId,               // aggregateId = key
+                    DECISION_EVENT_TYPE,   // eventType
+                    json,                  // payload
+                    OutboxStatus.PENDING,             // status
+                    Instant.now()          // createdAt
+            );
+
+            repository.save(event);
+
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to serialize DecisionMadeV1", e);
         }
     }
 
     private String extractInputId(Object payload) {
-        if (payload instanceof InputReceivedV1 inputReceivedV1) {
-            return inputReceivedV1.inputId();
+        if (payload instanceof InputReceivedV1 input) {
+            return input.inputId();
         }
         return "unknown-input-id";
     }
@@ -89,8 +107,7 @@ public class KafkaDecisionOutcomePublisher implements DecisionOutcomePublisher {
         return switch (result.outcome()) {
             case ACCEPT -> "P1";
             case REJECT -> "P3";
-            case RETRY -> "P2";
-            case DEFER -> "P2";
+            case RETRY, DEFER -> "P2";
         };
     }
 }

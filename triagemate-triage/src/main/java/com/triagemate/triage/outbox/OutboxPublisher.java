@@ -4,6 +4,7 @@ import com.triagemate.triage.persistence.JdbcOutboxRepository;
 import com.triagemate.triage.persistence.OutboxEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -25,6 +26,7 @@ public class OutboxPublisher {
 
     public OutboxPublisher(
             JdbcOutboxRepository repository,
+            @Qualifier("outboxKafkaTemplate")
             KafkaTemplate<String, String> kafkaTemplate,
             OutboxProperties properties
     ) throws Exception {
