@@ -37,7 +37,6 @@ class TriageDuplicateEventIdTest extends KafkaIntegrationTestBase {
 
     @Autowired KafkaListenerEndpointRegistry registry;
     @Autowired ObjectMapper objectMapper;
-    @Autowired KafkaTemplate<String, String> kafkaTemplate;
 
     private KafkaTemplate<String, EventEnvelope<InputReceivedV1>> producer;
 
@@ -94,9 +93,6 @@ class TriageDuplicateEventIdTest extends KafkaIntegrationTestBase {
         assertThat(first.count()).isEqualTo(1);
 
         var record = first.iterator().next();
-
-        System.out.println("VALLLLLL: " + record.value());
-        System.out.println("KAFKA TEMPLATE: " + kafkaTemplate.getProducerFactory().getConfigurationProperties());
 
         EventEnvelope<DecisionMadeV1> decisionEnvelope =
                 objectMapper.readValue(

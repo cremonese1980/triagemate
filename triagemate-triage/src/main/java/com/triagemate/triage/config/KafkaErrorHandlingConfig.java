@@ -5,7 +5,6 @@ import com.triagemate.triage.exception.RetrIableDecisionException;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.listener.DefaultErrorHandler;
@@ -18,7 +17,6 @@ public class KafkaErrorHandlingConfig {
 
     private final TriagemateKafkaProperties triagemateKafkaProperties;
 
-    @Autowired
     public KafkaErrorHandlingConfig(TriagemateKafkaProperties triagemateKafkaProperties) {
         this.triagemateKafkaProperties = triagemateKafkaProperties;
     }

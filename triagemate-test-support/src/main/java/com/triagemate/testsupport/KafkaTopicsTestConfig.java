@@ -1,6 +1,7 @@
 package com.triagemate.testsupport;
 
 import org.apache.kafka.clients.admin.NewTopic;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 
@@ -8,12 +9,16 @@ import org.springframework.context.annotation.Bean;
 public class KafkaTopicsTestConfig {
 
     @Bean
-    public NewTopic inputReceivedTopic() {
-        return new NewTopic("triagemate.ingest.input-received.v1", 1, (short) 1);
+    public NewTopic inputReceivedTopic(
+            @Value("${triagemate.kafka.topics.input-received}") String name
+    ) {
+        return new NewTopic(name, 1, (short) 1);
     }
 
     @Bean
-    public NewTopic decisionMadeTopic() {
-        return new NewTopic("triagemate.triage.decision-made.v1", 1, (short) 1);
+    public NewTopic decisionMadeTopic(
+            @Value("${triagemate.kafka.topics.decision-made}") String name
+    ) {
+        return new NewTopic(name, 1, (short) 1);
     }
 }
