@@ -37,6 +37,7 @@ class TriageDuplicateEventIdTest extends KafkaIntegrationTestBase {
 
     @Autowired KafkaListenerEndpointRegistry registry;
     @Autowired ObjectMapper objectMapper;
+    @Autowired KafkaTemplate<String, String> kafkaTemplate;
 
     private KafkaTemplate<String, EventEnvelope<InputReceivedV1>> producer;
 
@@ -60,6 +61,7 @@ class TriageDuplicateEventIdTest extends KafkaIntegrationTestBase {
 
     @Test
     void duplicateEventId_emitsOnlyOneDecision() throws Exception {
+
         Consumer<String, String> consumer = decisionMadeConsumer();
 
         String eventId = UUID.randomUUID().toString();
@@ -85,21 +87,27 @@ class TriageDuplicateEventIdTest extends KafkaIntegrationTestBase {
                 Map.of()
         );
 
-        // 1) First send -> expect 1 decision
+        // 1) First send
         producer.send("triagemate.ingest.input-received.v1", inputId, envelope).get();
 
         var first = KafkaTestUtils.getRecords(consumer, Duration.ofSeconds(10));
         assertThat(first.count()).isEqualTo(1);
 
-        // Optional: sanity-check decision payload belongs to our inputId
-        var firstRecord = first.iterator().next();
-        EventEnvelope<?> decisionEnvelope =
-                objectMapper.readValue(firstRecord.value(), EventEnvelope.class);
-        DecisionMadeV1 decision =
-                objectMapper.convertValue(decisionEnvelope.payload(), DecisionMadeV1.class);
+        var record = first.iterator().next();
+
+        System.out.println("VALLLLLL: " + record.value());
+        System.out.println("KAFKA TEMPLATE: " + kafkaTemplate.getProducerFactory().getConfigurationProperties());
+
+        EventEnvelope<DecisionMadeV1> decisionEnvelope =
+                objectMapper.readValue(
+                        record.value(),
+                        new com.fasterxml.jackson.core.type.TypeReference<EventEnvelope<DecisionMadeV1>>() {}
+                );
+
+        DecisionMadeV1 decision = decisionEnvelope.payload();
         assertThat(decision.inputId()).isEqualTo(inputId);
 
-        // 2) Duplicate send (same eventId) -> expect NO new decision
+        // 2) Duplicate send
         producer.send("triagemate.ingest.input-received.v1", inputId, envelope).get();
 
         var second = KafkaTestUtils.getRecords(consumer, Duration.ofSeconds(3));
@@ -107,7 +115,9 @@ class TriageDuplicateEventIdTest extends KafkaIntegrationTestBase {
     }
 
     private Consumer<String, String> decisionMadeConsumer() {
+
         String groupId = "triage-dup-it-" + UUID.randomUUID();
+
         Map<String, Object> props =
                 KafkaTestUtils.consumerProps(kafka.getBootstrapServers(), groupId, "false");
 
@@ -115,13 +125,16 @@ class TriageDuplicateEventIdTest extends KafkaIntegrationTestBase {
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 
-        var consumer = new DefaultKafkaConsumerFactory<String, String>(props).createConsumer();
+        var consumer = new DefaultKafkaConsumerFactory<String, String>(props)
+                .createConsumer();
+
         consumer.subscribe(List.of("triagemate.triage.decision-made.v1"));
 
         long deadline = System.currentTimeMillis() + 10_000;
         while (consumer.assignment().isEmpty() && System.currentTimeMillis() < deadline) {
             consumer.poll(Duration.ofMillis(100));
         }
+
         return consumer;
     }
 }

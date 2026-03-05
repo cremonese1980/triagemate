@@ -59,7 +59,6 @@ class TriageValidEventTest extends KafkaIntegrationTestBase {
         registry.getListenerContainers()
                 .forEach(container -> ContainerTestUtils.waitForAssignment(container, container.getContainerProperties().getTopics().length));
 
-
     }
 
     @Test
