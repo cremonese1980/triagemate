@@ -44,4 +44,5 @@ triagemate:
     base-backoff-millis: 500
     max-backoff-millis: 5000
     poll-interval-ms: 500
+    initial-delay-ms: 500
     lock-duration-seconds: 10

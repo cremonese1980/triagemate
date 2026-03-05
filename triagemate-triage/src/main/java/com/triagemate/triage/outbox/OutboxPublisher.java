@@ -45,7 +45,8 @@ public class OutboxPublisher {
         }
     }
 
-    @Scheduled(fixedDelayString = "${triagemate.outbox.poll-interval-ms:2000}")
+    @Scheduled(fixedDelayString = "${triagemate.outbox.poll-interval-ms:2000}",
+            initialDelayString = "${triagemate.outbox.initial-delay-ms:2000}")
     public void poll() {
 
         List<OutboxEvent> batch =
