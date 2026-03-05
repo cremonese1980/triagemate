@@ -37,3 +37,11 @@ triagemate:
       retry:
         backoff-ms: 200
         max-retries: 2
+
+  outbox:
+    batch-size: 10
+    max-attempts: 3
+    base-backoff-millis: 500
+    max-backoff-millis: 5000
+    poll-interval-ms: 500
+    lock-duration-seconds: 10

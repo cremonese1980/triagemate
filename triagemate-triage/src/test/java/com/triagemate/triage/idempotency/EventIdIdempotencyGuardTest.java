@@ -5,15 +5,9 @@ import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.autoconfigure.jdbc.JdbcTest;
 import org.springframework.context.annotation.Import;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
+
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -26,18 +20,22 @@ class EventIdIdempotencyGuardTest extends JdbcIntegrationTestBase {
 
     @Test
     void firstTime_eventIsNotDuplicate() {
-        assertThat(guard.tryMarkProcessed("event-1")).isTrue();
+        String eventId = UUID.randomUUID().toString();
+        assertThat(guard.tryMarkProcessed(eventId)).isTrue();
     }
 
     @Test
     void afterMarkProcessed_eventBecomesDuplicate() {
-        assertThat(guard.tryMarkProcessed("event-1")).isTrue();
-        assertThat(guard.tryMarkProcessed("event-1")).isFalse();
+        String eventId = UUID.randomUUID().toString();
+        assertThat(guard.tryMarkProcessed(eventId)).isTrue();
+        assertThat(guard.tryMarkProcessed(eventId)).isFalse();
     }
 
     @Test
     void differentEventIds_areIndependent() {
-        guard.tryMarkProcessed("event-1");
-        assertThat(guard.tryMarkProcessed("event-2")).isTrue();
+        String eventId1 = UUID.randomUUID().toString();
+        String eventId2 = UUID.randomUUID().toString();
+        guard.tryMarkProcessed(eventId1);
+        assertThat(guard.tryMarkProcessed(eventId2)).isTrue();
     }
 }

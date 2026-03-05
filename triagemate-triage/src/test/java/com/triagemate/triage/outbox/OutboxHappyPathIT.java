@@ -115,8 +115,6 @@ class OutboxHappyPathIT extends KafkaIntegrationTestBase {
         }
         assertThat(count).isEqualTo(1L);
 
-        assertThat(count).isEqualTo(1);
-
         consumer.close();
     }
 }

@@ -1,6 +1,7 @@
 package com.triagemate.triage.config;
 
 import org.apache.kafka.clients.admin.NewTopic;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -11,36 +12,44 @@ import org.springframework.kafka.config.TopicBuilder;
 public class KafkaTopicsDevConfig {
 
     @Bean
-    public NewTopic inputReceivedTopic() {
+    public NewTopic inputReceivedTopic(
+            @Value("${triagemate.kafka.topics.input-received}") String name
+    ) {
         return TopicBuilder
-                .name("triagemate.ingest.input-received.v1")
+                .name(name)
                 .partitions(3)
                 .replicas(1)
                 .build();
     }
 
     @Bean
-    public NewTopic inputReceivedDltTopic() {
+    public NewTopic inputReceivedDltTopic(
+            @Value("${triagemate.kafka.topics.input-received}") String name
+    ) {
         return TopicBuilder
-                .name("triagemate.ingest.input-received.v1.dlt")
+                .name(name + ".dlt")
                 .partitions(3)
                 .replicas(1)
                 .build();
     }
 
     @Bean
-    public NewTopic decisionMadeTopic() {
+    public NewTopic decisionMadeTopic(
+            @Value("${triagemate.kafka.topics.decision-made}") String name
+    ) {
         return TopicBuilder
-                .name("triagemate.triage.decision-made.v1")
+                .name(name)
                 .partitions(3)
                 .replicas(1)
                 .build();
     }
 
     @Bean
-    public NewTopic decisionMadeDltTopic() {
+    public NewTopic decisionMadeDltTopic(
+            @Value("${triagemate.kafka.topics.decision-made}") String name
+    ) {
         return TopicBuilder
-                .name("triagemate.triage.decision-made.v1.dlt")
+                .name(name + ".dlt")
                 .partitions(3)
                 .replicas(1)
                 .build();

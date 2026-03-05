@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 import jakarta.validation.Validator;
 import jakarta.validation.ConstraintViolation;
 
@@ -42,15 +43,15 @@ public class InputReceivedConsumer {
     }
 
     /**
-     * Claim-first idempotency: the event is claimed in the DB (INSERT ON CONFLICT DO NOTHING)
-     * BEFORE any business logic or Kafka publish. If routing fails after the claim, the event
-     * is permanently marked as processed and Kafka retries will short-circuit as duplicate.
-     * <p>
-     * Known crash-window: if the process crashes between tryMarkProcessed() and route(),
-     * the decision is never emitted but the event is marked as processed.
-     * This is an accepted trade-off for Phase 9.2. Phase 10 (Transactional Outbox) will
-     * eliminate this window by persisting the outgoing event in the same DB transaction.
+     * Atomic outbox flow: a single DB transaction wraps:
+     * 1. tryMarkProcessed() — idempotency claim (INSERT ON CONFLICT DO NOTHING)
+     * 2. process() — decision logic (pure, no DB writes)
+     * 3. route() → OutboxDecisionOutcomePublisher.publish() — INSERT into outbox_events
+     *
+     * If any step fails, the entire transaction rolls back: no orphan claims, no lost events.
+     * The outbox publisher (async, outside this TX) polls and publishes to Kafka.
      */
+    @Transactional
     @KafkaListener(
             topics = "${triagemate.kafka.topics.input-received}",
             groupId = "${triagemate.kafka.consumer.group-id}"
@@ -66,7 +67,7 @@ public class InputReceivedConsumer {
 
         validate(envelope);
 
-        // Claim-first: INSERT committed before routing. See Javadoc for crash-window note.
+        // Atomic: idempotency claim + outbox write in the same @Transactional boundary
         if (!idempotencyGuard.tryMarkProcessed(envelope.eventId())) {
             return; // duplicate, stop immediately
         }

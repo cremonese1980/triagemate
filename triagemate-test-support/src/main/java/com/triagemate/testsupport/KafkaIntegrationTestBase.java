@@ -33,7 +33,7 @@ public abstract class KafkaIntegrationTestBase {
 
         // Kafka
         r.add("spring.kafka.bootstrap-servers", kafka::getBootstrapServers);
-        r.add("triagemate.kafka.topics.input-received-v1",
+        r.add("triagemate.kafka.topics.input-received",
                 () -> "triagemate.ingest.input-received.v1");
         r.add("triagemate.kafka.topics.decision-made",
                 () -> "triagemate.triage.decision-made.v1");

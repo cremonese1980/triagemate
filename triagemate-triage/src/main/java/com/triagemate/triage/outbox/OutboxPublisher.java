@@ -10,6 +10,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -29,11 +30,19 @@ public class OutboxPublisher {
             @Qualifier("outboxKafkaTemplate")
             KafkaTemplate<String, String> kafkaTemplate,
             OutboxProperties properties
-    ) throws Exception {
+    ) {
         this.repository = repository;
         this.kafkaTemplate = kafkaTemplate;
         this.properties = properties;
-        this.instanceId = InetAddress.getLocalHost().getHostName() + "-" + UUID.randomUUID();
+        this.instanceId = resolveHostname() + "-" + UUID.randomUUID();
+    }
+
+    private static String resolveHostname() {
+        try {
+            return InetAddress.getLocalHost().getHostName();
+        } catch (UnknownHostException e) {
+            return "unknown";
+        }
     }
 
     @Scheduled(fixedDelayString = "${triagemate.outbox.poll-interval-ms:2000}")

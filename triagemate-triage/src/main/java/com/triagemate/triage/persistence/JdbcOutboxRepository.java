@@ -1,5 +1,6 @@
 package com.triagemate.triage.persistence;
 
+import com.triagemate.triage.outbox.OutboxProperties;
 import com.triagemate.triage.outbox.OutboxStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -12,13 +13,24 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * JDBC-based repository for outbox event mutations.
+ *
+ * JPA ({@link OutboxEventRepository}) is used only for the atomic INSERT inside the
+ * business transaction. All polling, claiming, and status updates use raw JDBC because:
+ * - {@code FOR UPDATE SKIP LOCKED} requires native SQL
+ * - {@code RETURNING} clause is not supported by JPA
+ * - Lock semantics must be explicit, not managed by Hibernate dirty-checking
+ */
 @Repository
 public class JdbcOutboxRepository {
 
     private final JdbcTemplate jdbcTemplate;
+    private final OutboxProperties properties;
 
-    public JdbcOutboxRepository(JdbcTemplate jdbcTemplate) {
+    public JdbcOutboxRepository(JdbcTemplate jdbcTemplate, OutboxProperties properties) {
         this.jdbcTemplate = jdbcTemplate;
+        this.properties = properties;
     }
 
     public List<OutboxEvent> claimBatch(int batchSize, String instanceId) {
@@ -36,7 +48,7 @@ public class JdbcOutboxRepository {
     UPDATE outbox_events o
     SET
         lock_owner = ?,
-        locked_until = now() + interval '30 seconds'
+        locked_until = now() + make_interval(secs => ?)
     FROM cte
     WHERE o.id = cte.id
     RETURNING o.*;
@@ -48,6 +60,7 @@ public class JdbcOutboxRepository {
                     ps.setString(1, OutboxStatus.PENDING.name());
                     ps.setInt(2, batchSize);
                     ps.setString(3, instanceId);
+                    ps.setLong(4, properties.getLockDurationSeconds());
                 },
                 new OutboxRowMapper()
         );
@@ -88,6 +101,7 @@ public class JdbcOutboxRepository {
             locked_until = null,
             last_error = ?
         WHERE id = ?
+          AND status = ?
         """;
 
         jdbcTemplate.update(
@@ -95,7 +109,8 @@ public class JdbcOutboxRepository {
                 publishAttempts,
                 Timestamp.from(nextAttemptAt),
                 truncate(error),
-                id
+                id,
+                OutboxStatus.PENDING.name()
         );
     }
 
@@ -125,9 +140,7 @@ public class JdbcOutboxRepository {
         return error.length() <= max ? error : error.substring(0, max);
     }
 
-    private static class OutboxRowMapper
-
-            implements RowMapper<OutboxEvent> {
+    private static class OutboxRowMapper implements RowMapper<OutboxEvent> {
 
         @Override
         public OutboxEvent mapRow(ResultSet rs, int rowNum) throws SQLException {
@@ -144,7 +157,6 @@ public class JdbcOutboxRepository {
                     rs.getTimestamp("created_at").toInstant()
             );
 
-            // restore mutable fields
             event.setPublishAttempts(rs.getInt("publish_attempts"));
             event.setNextAttemptAt(rs.getTimestamp("next_attempt_at").toInstant());
             event.setPublishedAt(toInstant(rs, "published_at"));

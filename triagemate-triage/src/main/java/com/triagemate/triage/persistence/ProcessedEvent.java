@@ -34,7 +34,6 @@ public class ProcessedEvent {
         return eventId;
     }
 
-
     public Instant getProcessedAt() {
         return processedAt;
     }

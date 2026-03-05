@@ -66,7 +66,7 @@ class ConcurrentIdempotencyGuardTest extends KafkaIntegrationTestBase {
         start.countDown();
 
         executor.shutdown();
-        executor.awaitTermination(threads, TimeUnit.SECONDS);
+        executor.awaitTermination(30, TimeUnit.SECONDS);
 
         Integer dbCount = jdbcTemplate.queryForObject(
                 "select count(*) from processed_events where event_id = ?",

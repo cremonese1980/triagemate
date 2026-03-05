@@ -81,8 +81,8 @@ public class OutboxDecisionOutcomePublisher implements DecisionOutcomePublisher 
 
             OutboxEvent event = new OutboxEvent(
                     UUID.randomUUID(),
-                    topic,                 // aggregateType = topic (per ora)
-                    inputId,               // aggregateId = key
+                    topic,                 // V1: aggregateType stores the Kafka topic name
+                    inputId,               // aggregateId used as Kafka message key
                     DECISION_EVENT_TYPE,   // eventType
                     json,                  // payload
                     OutboxStatus.PENDING,             // status

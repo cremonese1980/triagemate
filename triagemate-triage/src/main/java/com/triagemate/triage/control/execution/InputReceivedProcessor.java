@@ -9,7 +9,6 @@ import com.triagemate.triage.control.decision.DecisionService;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 @Component
 public class InputReceivedProcessor {
@@ -28,7 +27,6 @@ public class InputReceivedProcessor {
         this.meterRegistry = meterRegistry;
     }
 
-    @Transactional
     public DecisionExecution process(EventEnvelope<?> envelope) {
 
         DecisionContext<InputReceivedV1> context = decisionContextFactory.fromEnvelope(envelope);
