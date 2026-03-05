@@ -80,7 +80,7 @@ public class OutboxPublisher {
 
                 log.error("Outbox exhausted for event {}", event.getId(), ex);
 
-                repository.markExhausted(event.getId(), ex.getMessage());
+                repository.markExhausted(event.getId(), attempts, ex.getMessage());
 
                 return;
             }

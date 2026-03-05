@@ -114,12 +114,13 @@ public class JdbcOutboxRepository {
         );
     }
 
-    public void markExhausted(UUID id, String error) {
+    public void markExhausted(UUID id, int publishAttempts, String error) {
 
         String sql = """
         UPDATE outbox_events
         SET
             status = ?,
+            publish_attempts = ?,
             lock_owner = null,
             locked_until = null,
             last_error = ?
@@ -129,6 +130,7 @@ public class JdbcOutboxRepository {
         jdbcTemplate.update(
                 sql,
                 OutboxStatus.FAILED.name(),
+                publishAttempts,
                 truncate(error),
                 id
         );
