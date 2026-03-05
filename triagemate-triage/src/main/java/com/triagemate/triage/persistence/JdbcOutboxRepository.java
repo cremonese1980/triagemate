@@ -95,7 +95,6 @@ public class JdbcOutboxRepository {
         String sql = """
         UPDATE outbox_events
         SET
-            status = ?,
             publish_attempts = ?,
             next_attempt_at = ?,
             lock_owner = null,
@@ -107,7 +106,6 @@ public class JdbcOutboxRepository {
 
         jdbcTemplate.update(
                 sql,
-                OutboxStatus.PENDING.name(),
                 publishAttempts,
                 Timestamp.from(nextAttemptAt),
                 truncate(error),

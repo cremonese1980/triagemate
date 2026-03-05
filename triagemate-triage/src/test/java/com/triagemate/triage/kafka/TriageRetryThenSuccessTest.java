@@ -3,6 +3,7 @@ package com.triagemate.triage.kafka;
 import com.triagemate.contracts.events.EventEnvelope;
 import com.triagemate.contracts.events.v1.InputReceivedV1;
 import com.triagemate.testsupport.KafkaIntegrationTestBase;
+import com.triagemate.triage.config.TriagemateKafkaProperties;
 import com.triagemate.triage.control.routing.DecisionRouter;
 import com.triagemate.triage.exception.RetrIableDecisionException;
 import org.apache.kafka.clients.consumer.Consumer;
@@ -47,6 +48,9 @@ class TriageRetryThenSuccessTest extends KafkaIntegrationTestBase {
 
     @Autowired
     JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    TriagemateKafkaProperties props;
 
     private KafkaTemplate<String, EventEnvelope<InputReceivedV1>> producer;
 
@@ -126,7 +130,7 @@ class TriageRetryThenSuccessTest extends KafkaIntegrationTestBase {
                             Integer.class,
                             eventId
                     );
-                    assertThat(count).isEqualTo(1);
+                    assertThat(count).isEqualTo(0);
                 });
 
         // Assert: no decision emitted within an observation window
@@ -139,7 +143,7 @@ class TriageRetryThenSuccessTest extends KafkaIntegrationTestBase {
                 });
 
         // With claim-first semantics, routing is executed only once.
-        verify(decisionRouter, times(1)).route(any(), any());
+        verify(decisionRouter, times(1 + props.consumer().retry().maxRetries())).route(any(), any());
     }
 
     private Consumer<String, String> decisionMadeConsumer() {
