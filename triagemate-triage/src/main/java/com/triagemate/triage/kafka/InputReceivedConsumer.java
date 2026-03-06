@@ -10,6 +10,7 @@ import com.triagemate.triage.support.TraceSupport;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,8 +18,6 @@ import jakarta.validation.Validator;
 import jakarta.validation.ConstraintViolation;
 
 import java.util.Set;
-
-import static net.logstash.logback.argument.StructuredArguments.kv;
 
 @Component
 public class InputReceivedConsumer {
@@ -61,30 +60,33 @@ public class InputReceivedConsumer {
         EventEnvelope<?> envelope = record.value();
 
         if (envelope == null) {
-            log.warn("Received null envelope", kv("requestId", null), kv("correlationId", null), kv("eventId", null));
+            log.warn("Received null envelope");
             return;
         }
 
-        validate(envelope);
+        // Populate MDC for structured logging correlation
+        MDC.put("requestId", TraceSupport.requestId(envelope));
+        MDC.put("correlationId", TraceSupport.correlationId(envelope));
+        MDC.put("eventId", envelope.eventId());
 
-        // Atomic: idempotency claim + outbox write in the same @Transactional boundary
-        if (!idempotencyGuard.tryMarkProcessed(envelope.eventId())) {
-            return; // duplicate, stop immediately
+        try {
+            validate(envelope);
+
+            // Atomic: idempotency claim + outbox write in the same @Transactional boundary
+            if (!idempotencyGuard.tryMarkProcessed(envelope.eventId())) {
+                return; // duplicate, stop immediately
+            }
+
+            DecisionExecution decisionExecution = inputReceivedProcessor.process(envelope);
+
+            decisionRouter.route(decisionExecution.result(), decisionExecution.context());
+
+            MDC.put("decisionOutcome", decisionExecution.result().outcome().name());
+
+            log.info("Decision completed");
+        } finally {
+            MDC.clear();
         }
-
-        DecisionExecution decisionExecution = inputReceivedProcessor.process(envelope);
-
-        decisionRouter.route(decisionExecution.result(), decisionExecution.context());
-
-
-        log.info(
-                "Decision completed",
-                kv("requestId", TraceSupport.requestId(envelope)),
-                kv("correlationId", TraceSupport.correlationId(envelope)),
-                kv("eventId", envelope.eventId()),
-                kv("decisionOutcome", decisionExecution.result().outcome().name())
-        );
-
     }
 
     private void validate(EventEnvelope<?> envelope){

@@ -33,8 +33,6 @@ server:
   port: 8082
 
 logging:
-  pattern:
-    console: "%d{HH:mm:ss.SSS} [%X{requestId}] %-5level %logger{36} - %msg%n"
   level:
     root: INFO
     org.apache.catalina: WARN
