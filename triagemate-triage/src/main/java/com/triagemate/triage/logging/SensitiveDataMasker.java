@@ -7,44 +7,88 @@ import java.security.NoSuchAlgorithmException;
 /**
  * Masks sensitive fields for safe logging.
  *
- * Uses SHA-256 truncated to 8 hex chars for deterministic,
+ * <p>Uses SHA-256 truncated to 8 hex chars for deterministic,
  * non-reversible masking that preserves correlation capability.
+ *
+ * <p>Current domain: triage of textual inputs (emails, tickets, messages).
+ * When a mailbox source is connected, fields like sender address,
+ * subject and body text must never appear in plain in logs.
  */
 public final class SensitiveDataMasker {
 
+    private static final int DEFAULT_HASH_LENGTH = 8;
+
     private SensitiveDataMasker() {}
 
+    // ── Generic ──────────────────────────────────────────────
+
     /**
-     * Masks patient ID with deterministic hash.
-     * Example: PAT-12345 -> PAT-a3f2e1b4
+     * Deterministic mask for any identifier.
+     * <p>Example: {@code "abc-12345" → "a3f2e1b4"}
+     *
+     * @param value raw value
+     * @return 8-char hex hash, or {@code "***"} if null/empty
      */
-    public static String maskPatientId(String patientId) {
-        if (patientId == null || patientId.isEmpty()) {
+    public static String mask(String value) {
+        if (value == null || value.isEmpty()) {
+            return "***";
+        }
+        return sha256Truncated(value, DEFAULT_HASH_LENGTH);
+    }
+
+    // ── Email ────────────────────────────────────────────────
+
+    /**
+     * Masks an email address preserving the domain for operational context.
+     * <p>Example: {@code "mario.rossi@azienda.it" → "a3f2e1b4@azienda.it"}
+     * <p>The local part is replaced with a deterministic hash so the same
+     * sender always produces the same masked value (correlation works),
+     * but the original address cannot be recovered.
+     *
+     * @param email raw email address
+     * @return masked email, or {@code "***"} if null/empty
+     */
+    public static String maskEmail(String email) {
+        if (email == null || email.isEmpty()) {
             return "***";
         }
 
-        String prefix = patientId.contains("-")
-                ? patientId.substring(0, patientId.indexOf('-') + 1)
-                : "PAT-";
-
-        return prefix + sha256Truncated(patientId, 8);
-    }
-
-    /**
-     * Masks device serial number with deterministic hash.
-     * Example: DEV-SN-987654321 -> DEV-SN-7b3e9f2a
-     */
-    public static String maskDeviceSerial(String serialNo) {
-        if (serialNo == null || serialNo.isEmpty()) {
-            return "***";
+        int atIndex = email.indexOf('@');
+        if (atIndex < 0) {
+            // Not a valid email — hash the whole thing
+            return sha256Truncated(email, DEFAULT_HASH_LENGTH);
         }
 
-        String prefix = serialNo.contains("-")
-                ? serialNo.substring(0, serialNo.lastIndexOf('-') + 1)
-                : "DEV-";
-
-        return prefix + sha256Truncated(serialNo, 8);
+        String domain = email.substring(atIndex); // includes '@'
+        return sha256Truncated(email, DEFAULT_HASH_LENGTH) + domain;
     }
+
+    // ── Free text (subject, body snippets) ───────────────────
+
+    /**
+     * Truncates free text to a safe preview length and appends "[...]".
+     * <p>Useful for logging subject lines or body excerpts without
+     * leaking the full content.
+     * <p>Example: {@code maskFreeText("Urgent: password reset request", 10) → "Urgent: pa[...]"}
+     *
+     * @param text         raw text
+     * @param visibleChars number of leading characters to keep visible
+     * @return truncated text, or {@code "***"} if null/empty
+     */
+    public static String maskFreeText(String text, int visibleChars) {
+        if (text == null || text.isEmpty()) {
+            return "***";
+        }
+        if (visibleChars <= 0) {
+            return "[...]";
+        }
+        if (text.length() <= visibleChars) {
+            return text;
+        }
+        return text.substring(0, visibleChars) + "[...]";
+    }
+
+    // ── Tokens / secrets ─────────────────────────────────────
 
     /**
      * Redacts authentication tokens completely.
@@ -53,7 +97,16 @@ public final class SensitiveDataMasker {
         return "[REDACTED]";
     }
 
-    private static String sha256Truncated(String input, int length) {
+    // ── Internal ─────────────────────────────────────────────
+
+    /**
+     * Generates a truncated SHA-256 hash (hex encoded).
+     *
+     * @param input  input string
+     * @param length number of hex characters to return
+     * @return truncated hex hash
+     */
+    static String sha256Truncated(String input, int length) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
