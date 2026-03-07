@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
 
-    <springProperty scope="context" name="APP_NAME"
-                    source="spring.application.name"
-                    defaultValue="triagemate-ingest"/>
+    <property name="APP_NAME" value="${SPRING_APPLICATION_NAME:-triagemate-ingest}"/>
 
     <!-- JSON appender (prod/docker) -->
     <appender name="JSON" class="ch.qos.logback.core.ConsoleAppender">
