@@ -21,18 +21,23 @@
         </encoder>
     </appender>
 
-    <!-- Dev + Test -->
-    <springProfile name="dev,test">
+    <!-- Dev + Test: plain text console -->
+    <springProfile name="dev | test">
         <root level="INFO">
             <appender-ref ref="PLAIN"/>
         </root>
     </springProfile>
 
-    <!-- Everything else -->
-    <springProfile name="!dev,test">
+    <!-- Docker / Prod: JSON structured logging -->
+    <springProfile name="docker | prod">
         <root level="INFO">
             <appender-ref ref="JSON"/>
         </root>
+
+        <!-- Suppress framework noise in production profiles -->
+        <logger name="org.springframework" level="WARN"/>
+        <logger name="org.hibernate" level="WARN"/>
+        <logger name="org.apache.kafka" level="WARN"/>
     </springProfile>
 
 </configuration>

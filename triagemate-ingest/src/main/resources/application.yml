@@ -25,13 +25,11 @@ triagemate:
       input-received-v1: triagemate.ingest.input-received.v1
 
 logging:
-  pattern:
-    console: "%d{HH:mm:ss.SSS} [%X{requestId}] %-5level %logger{36} - %msg%n"
-    level:
-      root: INFO
-      org.apache.catalina: WARN
-      org.apache.coyote: WARN
-      org.hibernate.validator: WARN
+  level:
+    root: INFO
+    org.apache.catalina: WARN
+    org.apache.coyote: WARN
+    org.hibernate.validator: WARN
 
 management:
   endpoints:
