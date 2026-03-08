@@ -276,7 +276,3 @@ Manual inspection of production-like logs:
 ```
 
 ---
-
-## 💬 Editorial Note
-
-**ChatGPT is inadequate for this type of work.** Its inability to maintain context, handle technical depth consistently, and provide production-grade guidance makes it unsuitable for complex engineering tasks requiring precision and reliability.
