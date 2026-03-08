@@ -6,8 +6,7 @@ import com.triagemate.triage.control.decision.DecisionContext;
 import com.triagemate.triage.control.decision.DecisionContextFactory;
 import com.triagemate.triage.control.decision.DecisionResult;
 import com.triagemate.triage.control.decision.DecisionService;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
+import com.triagemate.triage.observability.DecisionMetrics;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -15,27 +14,23 @@ public class InputReceivedProcessor {
 
     private final DecisionContextFactory decisionContextFactory;
     private final DecisionService decisionService;
-    private final MeterRegistry meterRegistry;
+    private final DecisionMetrics decisionMetrics;
 
     public InputReceivedProcessor(
             DecisionContextFactory decisionContextFactory,
             DecisionService decisionService,
-            MeterRegistry meterRegistry
+            DecisionMetrics decisionMetrics
     ) {
         this.decisionContextFactory = decisionContextFactory;
         this.decisionService = decisionService;
-        this.meterRegistry = meterRegistry;
+        this.decisionMetrics = decisionMetrics;
     }
 
     public DecisionExecution process(EventEnvelope<?> envelope) {
 
         DecisionContext<InputReceivedV1> context = decisionContextFactory.fromEnvelope(envelope);
 
-        Timer.Sample sample = Timer.start(meterRegistry);
-        DecisionResult result = decisionService.decide(context);
-        sample.stop(Timer.builder("triagemate.decision.latency")
-                .tag("outcome", result.outcome().name())
-                .register(meterRegistry));
+        DecisionResult result = decisionMetrics.timeDecision(() -> decisionService.decide(context));
 
         return new DecisionExecution(result, context);
     }

@@ -15,7 +15,6 @@ import java.util.UUID;
 
 /**
  * JDBC-based repository for outbox event mutations.
- *
  * JPA ({@link OutboxEventRepository}) is used only for the atomic INSERT inside the
  * business transaction. All polling, claiming, and status updates use raw JDBC because:
  * - {@code FOR UPDATE SKIP LOCKED} requires native SQL
@@ -65,6 +64,30 @@ public class JdbcOutboxRepository {
                 },
                 new OutboxRowMapper()
         );
+    }
+
+    public long countPending() {
+
+        String sql = """
+        SELECT COUNT(*)
+        FROM outbox_events
+        WHERE status = ?
+        """;
+
+        Long count = jdbcTemplate.queryForObject(sql, Long.class, OutboxStatus.PENDING.name());
+        return count != null ? count : 0L;
+    }
+
+    public double oldestPendingAgeSeconds() {
+
+        String sql = """
+        SELECT EXTRACT(EPOCH FROM (now() - MIN(created_at)))
+        FROM outbox_events
+        WHERE status = ?
+        """;
+
+        Double age = jdbcTemplate.queryForObject(sql, Double.class, OutboxStatus.PENDING.name());
+        return age != null ? age : 0.0d;
     }
 
     public void markPublished(UUID id) {

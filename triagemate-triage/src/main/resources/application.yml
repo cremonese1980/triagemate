@@ -1,6 +1,8 @@
 spring:
   application:
     name: triagemate-triage
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
@@ -31,6 +33,7 @@ spring:
 
 server:
   port: 8082
+  shutdown: graceful
 
 logging:
   level:
@@ -58,10 +61,39 @@ triagemate:
     poll-interval-ms: 2000
     initial-delay-ms: 2000
 
-
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus,metrics
+      base-path: /actuator
 
+  endpoint:
+    prometheus:
+      enabled: true
+    health:
+      show-details: always
+      group:
+        readiness:
+          include: kafka,outboxBacklog
+
+  health:
+    status:
+      order: DOWN,OUT_OF_SERVICE,DEGRADED,UP,UNKNOWN
+      http-mapping:
+        DOWN: 503
+        OUT_OF_SERVICE: 503
+        DEGRADED: 200
+    probes:
+      enabled: true
+
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      environment: ${ENVIRONMENT:docker}
+
+    distribution:
+      percentiles-histogram:
+        triagemate.decision.latency.seconds: true
+      slo:
+        triagemate.decision.latency.seconds: 10ms,50ms,100ms,250ms,500ms,1s,2500ms,5s,10s
