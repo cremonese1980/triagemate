@@ -19,6 +19,14 @@ public class DecisionContextFactory {
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * Builds a {@link DecisionContext} from the given envelope, reading trace
+     * identifiers (requestId, correlationId) from the current thread's MDC.
+     *
+     * @implNote This method expects MDC to be populated by the upstream Kafka
+     *     consumer ({@code InputReceivedConsumer}) before invocation. If called
+     *     outside that pipeline, trace values will be {@code null}.
+     */
     public DecisionContext<InputReceivedV1> fromEnvelope(EventEnvelope<?> envelope) {
         // Read from MDC (populated by InputReceivedConsumer with fallback IDs for null traces)
         // This ensures generated fallback IDs flow through to the outbox payload
