@@ -17,6 +17,7 @@ public class MdcTaskDecorator implements TaskDecorator {
 
         return () -> {
             try {
+                MDC.clear(); // clear stale MDC from thread reuse before restoring parent context
                 if (contextMap != null) {
                     MDC.setContextMap(contextMap);
                 }

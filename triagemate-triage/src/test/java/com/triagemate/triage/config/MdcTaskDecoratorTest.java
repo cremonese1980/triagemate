@@ -69,4 +69,32 @@ class MdcTaskDecoratorTest {
 
         assertThat(captured.get()).isNullOrEmpty();
     }
+
+    @Test
+    void decorated_task_clears_stale_mdc_from_reused_thread() throws Exception {
+        // Parent has no MDC — decorator captures null contextMap
+        MDC.clear();
+        Runnable decorated = decorator.decorate(() -> {
+            // no-op
+        });
+
+        AtomicReference<Map<String, String>> capturedDuringRun = new AtomicReference<>();
+
+        // Simulate thread reuse: thread already has stale MDC from a previous task
+        Thread thread = new Thread(() -> {
+            MDC.put("requestId", "stale-req");
+            MDC.put("correlationId", "stale-corr");
+
+            // Now run the decorated task (parent had no MDC)
+            // The decorator should clear stale values before running
+            Runnable inspecting = decorator.decorate(() ->
+                    capturedDuringRun.set(MDC.getCopyOfContextMap()));
+            inspecting.run();
+        });
+        thread.start();
+        thread.join();
+
+        // Stale MDC should NOT be visible during task execution
+        assertThat(capturedDuringRun.get()).isNullOrEmpty();
+    }
 }
