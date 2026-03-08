@@ -64,10 +64,10 @@ public class InputReceivedConsumer {
             return;
         }
 
-        // Populate MDC for structured logging correlation
-        MDC.put("requestId", TraceSupport.requestId(envelope));
-        MDC.put("correlationId", TraceSupport.correlationId(envelope));
-        MDC.put("eventId", envelope.eventId());
+        // Populate MDC for correlation across all downstream logs (with fallback for null traces)
+        MDC.put("requestId", TraceSupport.requestIdOrGenerate(envelope));
+        MDC.put("correlationId", TraceSupport.correlationIdOrGenerate(envelope));
+        MDC.put("eventId", TraceSupport.eventIdOrDefault(envelope));
 
         try {
             validate(envelope);

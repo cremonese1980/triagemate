@@ -1,9 +1,12 @@
 package com.triagemate.triage.outbox;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.triagemate.triage.persistence.JdbcOutboxRepository;
 import com.triagemate.triage.persistence.OutboxEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -23,17 +26,20 @@ public class OutboxPublisher {
     private final JdbcOutboxRepository repository;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final OutboxProperties properties;
+    private final ObjectMapper objectMapper;
     private final String instanceId;
 
     public OutboxPublisher(
             JdbcOutboxRepository repository,
             @Qualifier("outboxKafkaTemplate")
             KafkaTemplate<String, String> kafkaTemplate,
-            OutboxProperties properties
+            OutboxProperties properties,
+            ObjectMapper objectMapper
     ) {
         this.repository = repository;
         this.kafkaTemplate = kafkaTemplate;
         this.properties = properties;
+        this.objectMapper = objectMapper;
         this.instanceId = resolveHostname() + "-" + UUID.randomUUID();
     }
 
@@ -57,7 +63,12 @@ public class OutboxPublisher {
         }
 
         for (OutboxEvent event : batch) {
-            publish(event);
+            try {
+                restoreMdcFromPayload(event);
+                publish(event);
+            } finally {
+                MDC.clear();
+            }
         }
     }
 
@@ -68,7 +79,7 @@ public class OutboxPublisher {
                     event.getAggregateType(),   // topic naming strategy
                     event.getAggregateId(),
                     event.getPayload()
-            ).get(); // block for reliability
+            ).get(); // block for reliability — keeps MDC in scope
 
             repository.markPublished(event.getId());
 
@@ -100,6 +111,33 @@ public class OutboxPublisher {
                     nextAttempt,
                     ex.getMessage()
             );
+        }
+    }
+
+    /**
+     * Restore MDC from outbox event payload (EventEnvelope JSON).
+     * Non-critical: failure to restore doesn't prevent publish.
+     */
+    private void restoreMdcFromPayload(OutboxEvent event) {
+        try {
+            JsonNode root = objectMapper.readTree(event.getPayload());
+
+            JsonNode trace = root.path("trace");
+            if (!trace.isMissingNode()) {
+                putIfPresent("requestId", trace.path("requestId"));
+                putIfPresent("correlationId", trace.path("correlationId"));
+            }
+
+            putIfPresent("eventId", root.path("eventId"));
+
+        } catch (Exception e) {
+            log.warn("Failed to restore MDC from outbox payload for event {}", event.getId(), e);
+        }
+    }
+
+    private static void putIfPresent(String key, JsonNode node) {
+        if (!node.isMissingNode() && !node.isNull()) {
+            MDC.put(key, node.asText());
         }
     }
 
