@@ -63,5 +63,17 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus,metrics
+      base-path: /actuator
+
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      environment: ${ENVIRONMENT:docker}
+
+    distribution:
+      percentiles-histogram:
+        triagemate.decision.latency.seconds: true
+      slo:
+        triagemate.decision.latency.seconds: 0.01,0.05,0.1,0.25,0.5,1.0,2.5,5.0,10.0
 

@@ -6,6 +6,7 @@ import com.triagemate.triage.control.execution.InputReceivedProcessor;
 import com.triagemate.triage.exception.InvalidEventException;
 import com.triagemate.triage.control.routing.DecisionRouter;
 import com.triagemate.triage.idempotency.EventIdIdempotencyGuard;
+import com.triagemate.triage.observability.DecisionMetrics;
 import com.triagemate.triage.support.TraceSupport;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
@@ -28,17 +29,20 @@ public class InputReceivedConsumer {
     private final InputReceivedProcessor inputReceivedProcessor;
     private final Validator validator;
     private final EventIdIdempotencyGuard idempotencyGuard;
+    private final DecisionMetrics decisionMetrics;
 
     public InputReceivedConsumer(
             DecisionRouter decisionRouter,
             InputReceivedProcessor inputReceivedProcessor,
             Validator validator,
-            EventIdIdempotencyGuard idempotencyGuard
+            EventIdIdempotencyGuard idempotencyGuard,
+            DecisionMetrics decisionMetrics
     ) {
         this.decisionRouter = decisionRouter;
         this.inputReceivedProcessor = inputReceivedProcessor;
         this.validator = validator;
         this.idempotencyGuard = idempotencyGuard;
+        this.decisionMetrics = decisionMetrics;
     }
 
     /**
@@ -95,6 +99,7 @@ public class InputReceivedConsumer {
                 validator.validate(envelope);
 
         if (!violations.isEmpty()) {
+            decisionMetrics.recordInvalid();
             throw new InvalidEventException("Invalid event envelope: " + violations);
         }
     }

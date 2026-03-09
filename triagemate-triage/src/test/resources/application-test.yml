@@ -27,6 +27,12 @@ spring:
   flyway:
     enabled: true
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+
 triagemate:
   kafka:
     topics:

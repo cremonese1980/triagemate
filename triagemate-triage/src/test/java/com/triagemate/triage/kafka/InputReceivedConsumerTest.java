@@ -9,6 +9,7 @@ import com.triagemate.triage.control.execution.DecisionExecution;
 import com.triagemate.triage.control.execution.InputReceivedProcessor;
 import com.triagemate.triage.control.routing.DecisionRouter;
 import com.triagemate.triage.idempotency.EventIdIdempotencyGuard;
+import com.triagemate.triage.observability.DecisionMetrics;
 import jakarta.validation.Validator;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.jupiter.api.AfterEach;
@@ -39,13 +40,14 @@ class InputReceivedConsumerTest {
     @Mock private InputReceivedProcessor inputReceivedProcessor;
     @Mock private Validator validator;
     @Mock private EventIdIdempotencyGuard idempotencyGuard;
+    @Mock private DecisionMetrics decisionMetrics;
 
     private InputReceivedConsumer consumer;
 
     @BeforeEach
     void setUp() {
         consumer = new InputReceivedConsumer(
-                decisionRouter, inputReceivedProcessor, validator, idempotencyGuard
+                decisionRouter, inputReceivedProcessor, validator, idempotencyGuard, decisionMetrics
         );
     }
 
