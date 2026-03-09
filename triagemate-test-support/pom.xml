@@ -52,11 +52,9 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- Test scope only -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
-            <scope>test</scope>
         </dependency>
 
     </dependencies>
