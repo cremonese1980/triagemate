@@ -2,6 +2,7 @@ package com.triagemate.triage.observability;
 
 import com.triagemate.testsupport.KafkaIntegrationTestBase;
 import com.triagemate.triage.control.decision.DecisionOutcome;
+import com.triagemate.triage.control.decision.DecisionResult;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +14,7 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.Duration;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -31,11 +33,33 @@ class MetricsExposureTest extends KafkaIntegrationTestBase {
     private MeterRegistry meterRegistry;
 
     @Test
+    void meterRegistry_shouldBePrometheusBacked() {
+        // Diagnostic: verify the registry type injected by Spring Boot
+        String registryClass = meterRegistry.getClass().getName();
+        assertThat(registryClass)
+                .as("MeterRegistry should be Prometheus-backed, got: " + registryClass
+                        + ". Check micrometer-registry-prometheus dependency.")
+                .containsIgnoringCase("prometheus");
+    }
+
+    @Test
     void prometheusEndpoint_shouldBeAccessible() {
+        // Diagnostic: check what endpoints are actually exposed
+        ResponseEntity<String> actuatorResponse = restTemplate.getForEntity(
+                "/actuator", String.class);
+        assertThat(actuatorResponse.getStatusCode())
+                .as("Actuator root should be accessible. Body: " + actuatorResponse.getBody())
+                .isEqualTo(HttpStatus.OK);
+
         ResponseEntity<String> response = restTemplate.getForEntity(
                 "/actuator/prometheus", String.class);
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getStatusCode())
+                .as("Prometheus endpoint returned " + response.getStatusCode()
+                        + ". Body: " + response.getBody()
+                        + ". MeterRegistry: " + meterRegistry.getClass().getName()
+                        + ". Actuator links: " + actuatorResponse.getBody())
+                .isEqualTo(HttpStatus.OK);
         assertThat(response.getHeaders().getContentType()).isNotNull();
         assertThat(response.getHeaders().getContentType().toString())
                 .contains("text/plain");
@@ -43,7 +67,6 @@ class MetricsExposureTest extends KafkaIntegrationTestBase {
 
     @Test
     void prometheusEndpoint_shouldExposeDecisionMetricsAfterRecording() {
-        // Trigger some metrics
         decisionMetrics.recordDecision(DecisionOutcome.ACCEPT, Duration.ofMillis(50));
         decisionMetrics.recordDecision(DecisionOutcome.REJECT, Duration.ofMillis(30));
         decisionMetrics.recordInvalid();
@@ -57,21 +80,12 @@ class MetricsExposureTest extends KafkaIntegrationTestBase {
         String body = response.getBody();
         assertThat(body).isNotNull();
 
-        // Decision total counter
         assertThat(body).contains("triagemate_decision_total");
         assertThat(body).contains("outcome=\"accept\"");
         assertThat(body).contains("outcome=\"reject\"");
-
-        // Invalid counter
         assertThat(body).contains("triagemate_decision_invalid_total");
-
-        // Error counter
         assertThat(body).contains("triagemate_decision_error_total");
-
-        // Latency histogram
         assertThat(body).contains("triagemate_decision_latency_seconds");
-
-        // Global tags
         assertThat(body).contains("application=\"triagemate-triage\"");
     }
 
@@ -82,10 +96,11 @@ class MetricsExposureTest extends KafkaIntegrationTestBase {
         ResponseEntity<String> response = restTemplate.getForEntity(
                 "/actuator/prometheus", String.class);
 
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+
         String body = response.getBody();
         assertThat(body).isNotNull();
 
-        // Verify histogram bucket structure
         assertThat(body).contains("triagemate_decision_latency_seconds_bucket");
         assertThat(body).contains("triagemate_decision_latency_seconds_count");
         assertThat(body).contains("triagemate_decision_latency_seconds_sum");
@@ -94,11 +109,12 @@ class MetricsExposureTest extends KafkaIntegrationTestBase {
     @Test
     void timeDecision_shouldExposeMetricsViaPrometheus() {
         decisionMetrics.timeDecision(() ->
-                com.triagemate.triage.control.decision.DecisionResult.of(
-                        DecisionOutcome.DEFER, "deferred", java.util.Map.of()));
+                DecisionResult.of(DecisionOutcome.DEFER, "deferred", Map.of()));
 
         ResponseEntity<String> response = restTemplate.getForEntity(
                 "/actuator/prometheus", String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 
         String body = response.getBody();
         assertThat(body).isNotNull();

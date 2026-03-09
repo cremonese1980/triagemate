@@ -66,6 +66,10 @@ management:
         include: health,info,prometheus,metrics
       base-path: /actuator
 
+  endpoint:
+    prometheus:
+      enabled: true
+
   metrics:
     tags:
       application: ${spring.application.name}

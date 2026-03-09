@@ -33,6 +33,10 @@ management:
       exposure:
         include: health,info,prometheus,metrics
 
+  endpoint:
+    prometheus:
+      enabled: true
+
 triagemate:
   kafka:
     topics:
