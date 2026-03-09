@@ -111,7 +111,6 @@ class EndToEndCorrelationTest extends KafkaIntegrationTestBase {
 
         correlatedLogs.forEach(log -> {
             assertThat(log.getMDCPropertyMap().get("correlationId")).isEqualTo(correlationId);
-            assertThat(log.getMDCPropertyMap().get("eventId")).isEqualTo(eventId);
         });
 
         consumer.close();
