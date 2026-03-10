@@ -318,131 +318,81 @@ This phase transforms TriageMate from a purely deterministic pipeline into a **d
 
 ## Architectural Principles
 
-AI must follow strict governance rules:
+> **AI suggests. Policy validates. System decides.**
 
-### Deterministic-first architecture
-The deterministic policy engine remains the authoritative decision maker.
-
-### AI as advisory layer
-AI produces suggestions but never executes decisions directly.
-
-### Validator-controlled overrides
-AI suggestions may influence the final outcome only after deterministic validation.
-
-### Replay-safe design
-Decisions must remain reproducible even if AI behavior changes.
-
-### Classifier abstraction
-The classification engine remains swappable so that future AI-first classification can be introduced without rewriting the pipeline.
+- **Deterministic-first:** The deterministic policy engine remains the authoritative decision maker.
+- **AI as advisory layer:** AI produces suggestions but never executes decisions directly.
+- **Validator-controlled overrides:** AI suggestions may influence the final outcome only after deterministic validation.
+- **Replay-safe:** Decisions must remain reproducible even if AI behavior changes.
+- **Bounded:** Every AI call has timeout, cost limit, circuit breaker, and schema validation.
 
 ---
 
-## Core Capabilities Introduced
+## Structure
 
-Phase 12 introduces the following system capabilities:
+Phase 12 is split into three incremental sub-phases that each deliver standalone value:
 
-### AI advisory decision layer
-AI can suggest alternative classifications or routing decisions based on context.
+### PHASE 12A — AI Advisory Core (MVP) `v0.12.0`
 
-### RAG over curated Decision Memory
-AI retrieves semantically similar historical decisions from a curated decision explanation dataset.
-
-### Provider abstraction via AI adapter layer
-AI providers (OpenAI, Claude, Ollama) are accessed through a unified adapter interface.
-
-### Local AI runtime support
-Optional execution using local models (Ollama).
-
-### AI safety and governance
-Strict validation, cost limits, latency limits, and prompt injection protections.
-
-### AI auditability
-Every AI interaction is recorded with prompt version, cost, latency, and outcome.
-
----
-
-## Sub-phases
-
-### PHASE 12.1 — AI Classification Foundation
-
-Introduce the AI-ready classification architecture.
+Working AI advisory pipeline with one provider, full auditability, deterministic fallback.
 
 **Key deliverables:**
-- Classification engine abstraction (`ClassificationEngine`)
-- AI adapter layer (`AiDecisionAdvisor`)
-- Spring AI provider integration
-- Versioned prompt templates
-- Structured output enforcement (JSON schema)
-- Deterministic fallback to rule-based classification
+- `AiDecisionAdvisor` interface (provider-neutral)
+- `AiAdvisedDecisionService` decorator wrapping existing `DefaultDecisionService`
+- Spring AI integration with one provider (Anthropic Claude)
+- Versioned prompt template (classpath resource, hashed)
+- Structured JSON output parsing with schema validation
+- `AiAdviceValidator` — deterministic validation of AI advice
+- Deterministic fallback for all failure modes
+- Circuit breaker (Resilience4j) + dedicated executor (`AbortPolicy`)
+- `ai_decision_audit` table for full AI traceability
+- Cost tracking per decision with configurable limits
+- Input sanitization (PII + prompt injection)
+- AI metrics on `/actuator/prometheus`
+- AI health indicator on `/actuator/health/ai`
+- AI disableable via `triagemate.ai.enabled=false` (zero overhead)
 
-**Important rule:**
-> AI classification must never become mandatory for pipeline correctness.
+**Integration approach:** Decorator pattern on `DecisionService`. Existing code (`Policy`, `CostGuard`, `DecisionRouter`, `OutboxPublisher`) remains **untouched**.
 
----
-
-### PHASE 12.2 — RAG over Decision Memory
-
-Introduce semantic retrieval over historical decisions.
-
-**Key deliverables:**
-- Curated Decision Explanation dataset
-- Vector embeddings of decision reasoning
-- PostgreSQL pgvector or equivalent vector store
-- Semantic similarity search
-- Retrieval context injection into AI prompts
-- Embedding cache to prevent repeated embedding computation
-
-**Note:** RAG operates on decision explanations, not raw event payloads.
+> Detailed spec: `docs/coding-process/V1/phase-12/phase12A.md`
 
 ---
 
-### PHASE 12.3 — Local AI Runtime Support
+### PHASE 12B — RAG + Multi-Provider `v0.12.1`
 
-Introduce optional local AI execution.
+Historical context enrichment and provider flexibility.
 
 **Key deliverables:**
-- Ollama integration
-- Local embedding models
-- Hybrid runtime configuration
+- Curated Decision Explanation dataset (not raw events)
+- Embedding pipeline + embedding cache
+- PostgreSQL pgvector for vector storage
+- Retrieval service (top-k similarity search)
+- Context injection into AI prompts (bounded token budget)
+- Ollama integration (local model support)
+- Hybrid provider routing (local/cloud based on privacy level)
+- Advanced PII handling with privacy classification
 
-**Supported modes:**
-- `local`
-- `cloud`
-- `hybrid`
-
-Local mode enables AI reasoning without external providers.
+> Detailed spec: `docs/coding-process/V1/phase-12/phase12B.md`
 
 ---
 
-### PHASE 12.4 — AI Safety & Governance
+### PHASE 12C — AI Governance, Quality & Observability `v0.12.2`
 
-Introduce strict governance for AI usage.
-
-**Key deliverables:**
-- Prompt versioning and prompt hash persistence
-- Input sanitization and prompt injection protection
-- Structured output validation
-- Cost budgeting per decision
-- AI latency limits and timeout handling
-- AI audit trail persistence
-
-**Every AI interaction must be fully auditable.**
-
----
-
-### PHASE 12.5 — AI Runtime Sanity
-
-Ensure AI integration does not destabilize the event pipeline.
+Production hardening: make AI measurable, governable, and self-healing.
 
 **Key deliverables:**
-- Dedicated executor for AI calls (no Kafka thread blocking)
-- Circuit breaker protection for AI providers
-- Deterministic fallback when AI fails
-- Basic resource isolation for AI workloads
+- Prompt governance (DB-stored, versioned, rollback-safe)
+- Quality metrics (acceptance rate, fallback rate, cost per decision)
+- Regression detection with automatic mitigation
+- Confidence calibration (predicted vs actual accuracy)
+- Model lifecycle (version tracking, drift detection, migration path)
+- Sealed error type hierarchy with error budget tracking
+- AI health endpoint with detailed subsystem status
+- AI audit query interface for governance review
 
-**This phase does not introduce horizontal scaling features.**
+**Note:** Phase 12C can run after Phase 13 if needed. It does not add AI capabilities — it hardens existing ones.
 
-Advanced concurrency, spike simulation, and distributed scale remain part of Phase 14.
+> Detailed spec: `docs/coding-process/V1/phase-12/phase12C.md`
 
 ---
 
@@ -451,9 +401,11 @@ Advanced concurrency, spike simulation, and distributed scale remain part of Pha
 At the end of Phase 12 the system becomes:
 
 - a **deterministic decision engine**
-- enhanced by **AI advisory reasoning**
+- enhanced by **bounded AI advisory reasoning**
 - capable of **semantic retrieval** over historical decisions
 - operating with **strict governance, safety, and auditability**
+- **measurable** through quality metrics and calibration
+- **self-healing** through circuit breakers, error budgets, and regression detection
 
 AI improves the quality of decisions while the deterministic system preserves correctness and reproducibility.
 
