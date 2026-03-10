@@ -304,69 +304,162 @@ Full operational visibility and alertable signals.
 
 ---
 
-## PHASE 12 — AI Integration (Decision Support)
+# PHASE 12 — AI Decision Support Engine
 
-### Objective
+## Objective
 
-Introduce AI **where it adds value** for intelligent decision support.
+Introduce AI into TriageMate as a governed decision support layer while preserving the deterministic architecture of the system.
 
-**This is the core identity of TriageMate.**
+This phase transforms TriageMate from a purely deterministic pipeline into a **deterministic engine augmented by AI reasoning**, while maintaining replayability, auditability, and policy authority.
 
-### Concepts
+**This phase defines the core identity of TriageMate.**
 
-AI is introduced as **decision support**, not blind automation:
+---
 
-- **AI-assisted classification** (error categorization, routing hints)
-- **RAG over Decision Memory** (query "why did we decide X?", grounded in historical data)
-- **Local GPU option** (Ollama/local embeddings) + fallback cloud (OpenAI/Claude)
-- **AI safety gates** (cost/latency budgets, allowlists, audit fields)
-- **Approval hooks** (AI output = untrusted input requiring validation)
+## Architectural Principles
 
-### Sub-phases
+AI must follow strict governance rules:
 
-#### PHASE 12.1 — AI-Assisted Classification
+### Deterministic-first architecture
+The deterministic policy engine remains the authoritative decision maker.
 
-- Spring AI integration
-- LLM API calls (OpenAI/Claude)
-- Cost/latency budgeting
-- Fallback to rule-based logic
+### AI as advisory layer
+AI produces suggestions but never executes decisions directly.
 
-#### PHASE 12.2 — RAG over Decision Memory
+### Validator-controlled overrides
+AI suggestions may influence the final outcome only after deterministic validation.
 
-- Vector embeddings (local or cloud)
-- Semantic search over historical decisions
-- Context-aware decision explanations
+### Replay-safe design
+Decisions must remain reproducible even if AI behavior changes.
 
-#### PHASE 12.3 — Local GPU Support (Optional)
+### Classifier abstraction
+The classification engine remains swappable so that future AI-first classification can be introduced without rewriting the pipeline.
 
+---
+
+## Core Capabilities Introduced
+
+Phase 12 introduces the following system capabilities:
+
+### AI advisory decision layer
+AI can suggest alternative classifications or routing decisions based on context.
+
+### RAG over curated Decision Memory
+AI retrieves semantically similar historical decisions from a curated decision explanation dataset.
+
+### Provider abstraction via AI adapter layer
+AI providers (OpenAI, Claude, Ollama) are accessed through a unified adapter interface.
+
+### Local AI runtime support
+Optional execution using local models (Ollama).
+
+### AI safety and governance
+Strict validation, cost limits, latency limits, and prompt injection protections.
+
+### AI auditability
+Every AI interaction is recorded with prompt version, cost, latency, and outcome.
+
+---
+
+## Sub-phases
+
+### PHASE 12.1 — AI Classification Foundation
+
+Introduce the AI-ready classification architecture.
+
+**Key deliverables:**
+- Classification engine abstraction (`ClassificationEngine`)
+- AI adapter layer (`AiDecisionAdvisor`)
+- Spring AI provider integration
+- Versioned prompt templates
+- Structured output enforcement (JSON schema)
+- Deterministic fallback to rule-based classification
+
+**Important rule:**
+> AI classification must never become mandatory for pipeline correctness.
+
+---
+
+### PHASE 12.2 — RAG over Decision Memory
+
+Introduce semantic retrieval over historical decisions.
+
+**Key deliverables:**
+- Curated Decision Explanation dataset
+- Vector embeddings of decision reasoning
+- PostgreSQL pgvector or equivalent vector store
+- Semantic similarity search
+- Retrieval context injection into AI prompts
+- Embedding cache to prevent repeated embedding computation
+
+**Note:** RAG operates on decision explanations, not raw event payloads.
+
+---
+
+### PHASE 12.3 — Local AI Runtime Support
+
+Introduce optional local AI execution.
+
+**Key deliverables:**
 - Ollama integration
 - Local embedding models
-- Offline capability
+- Hybrid runtime configuration
 
-#### PHASE 12.4 — AI Safety & Governance
+**Supported modes:**
+- `local`
+- `cloud`
+- `hybrid`
 
-- Input sanitization
-- Output validation
-- Cost tracking per decision
-- Audit trail for AI usage
+Local mode enables AI reasoning without external providers.
 
-#### PHASE 12.5 — Scale Sanity (Minimal Concurrency)
+---
 
-**Purpose:** Prevent system from exploding under load, without full production hardening.
+### PHASE 12.4 — AI Safety & Governance
 
-**Deliverables:**
-- Kafka consumer concurrency config (explicit, documented)
-- Basic rebalance test (2 instances, no data loss)
-- Connection pool sizing (Hikari + Kafka alignment)
-- Graceful shutdown validation
+Introduce strict governance for AI usage.
 
-**NOT in scope:** Advanced locking, spike testing, multi-datacenter — that's V2.0.
+**Key deliverables:**
+- Prompt versioning and prompt hash persistence
+- Input sanitization and prompt injection protection
+- Structured output validation
+- Cost budgeting per decision
+- AI latency limits and timeout handling
+- AI audit trail persistence
 
-### Outcome
+**Every AI interaction must be fully auditable.**
 
-AI as a **decision support engine** with operational guardrails.
+---
 
-**⏭ Status: Planned**
+### PHASE 12.5 — AI Runtime Sanity
+
+Ensure AI integration does not destabilize the event pipeline.
+
+**Key deliverables:**
+- Dedicated executor for AI calls (no Kafka thread blocking)
+- Circuit breaker protection for AI providers
+- Deterministic fallback when AI fails
+- Basic resource isolation for AI workloads
+
+**This phase does not introduce horizontal scaling features.**
+
+Advanced concurrency, spike simulation, and distributed scale remain part of Phase 14.
+
+---
+
+## Outcome
+
+At the end of Phase 12 the system becomes:
+
+- a **deterministic decision engine**
+- enhanced by **AI advisory reasoning**
+- capable of **semantic retrieval** over historical decisions
+- operating with **strict governance, safety, and auditability**
+
+AI improves the quality of decisions while the deterministic system preserves correctness and reproducibility.
+
+---
+
+**⏭ Status:** Planned
 
 ---
 
