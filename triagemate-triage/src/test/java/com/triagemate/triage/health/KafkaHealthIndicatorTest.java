@@ -1,6 +1,6 @@
 package com.triagemate.triage.health;
 
-import org.apache.kafka.clients.PartitionInfo;
+import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.clients.producer.Producer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
