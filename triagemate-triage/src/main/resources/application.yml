@@ -58,7 +58,6 @@ triagemate:
     poll-interval-ms: 2000
     initial-delay-ms: 2000
 
-
 management:
   endpoints:
     web:
@@ -68,6 +67,21 @@ management:
 
   endpoint:
     prometheus:
+      enabled: true
+    health:
+      show-details: always
+      group:
+        readiness:
+          include: kafka,outboxBacklog
+
+  health:
+    status:
+      order: DOWN,OUT_OF_SERVICE,DEGRADED,UP,UNKNOWN
+      http-mapping:
+        DOWN: 503
+        OUT_OF_SERVICE: 503
+        DEGRADED: 200
+    probes:
       enabled: true
 
   metrics:
@@ -80,4 +94,3 @@ management:
         triagemate.decision.latency.seconds: true
       slo:
         triagemate.decision.latency.seconds: 10ms,50ms,100ms,250ms,500ms,1s,2500ms,5s,10s
-

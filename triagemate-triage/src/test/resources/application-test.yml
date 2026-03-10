@@ -36,10 +36,25 @@ management:
   endpoint:
     prometheus:
       enabled: true
+    health:
+      show-details: always
+      group:
+        readiness:
+          include: kafka,outboxBacklog
 
-  prometheus:
-    metrics:
-      export:
+  health:
+    status:
+      order: DOWN,OUT_OF_SERVICE,DEGRADED,UP,UNKNOWN
+      http-mapping:
+        DOWN: 503
+        OUT_OF_SERVICE: 503
+        DEGRADED: 200
+    probes:
+      enabled: true
+
+  metrics:
+    export:
+      prometheus:
         enabled: true
 
 triagemate:

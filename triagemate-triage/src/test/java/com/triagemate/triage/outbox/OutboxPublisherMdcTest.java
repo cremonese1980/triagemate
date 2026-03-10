@@ -2,6 +2,8 @@ package com.triagemate.triage.outbox;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.triagemate.triage.health.KafkaHealthIndicator;
+import com.triagemate.triage.observability.OutboxMetrics;
 import com.triagemate.triage.persistence.JdbcOutboxRepository;
 import com.triagemate.triage.persistence.OutboxEvent;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -14,6 +16,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.slf4j.MDC;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 
@@ -37,6 +40,9 @@ class OutboxPublisherMdcTest {
     @Mock
     private KafkaTemplate<String, String> kafkaTemplate;
 
+    @Mock
+    private KafkaHealthIndicator kafkaHealth;
+
     private OutboxPublisher publisher;
 
     private final ObjectMapper objectMapper = new ObjectMapper()
@@ -50,7 +56,8 @@ class OutboxPublisherMdcTest {
         props.setBaseBackoffMillis(1000);
         props.setMaxBackoffMillis(300000);
 
-        publisher = new OutboxPublisher(repository, kafkaTemplate, props, objectMapper);
+        publisher = new OutboxPublisher(repository, kafkaTemplate, props, objectMapper,
+                new OutboxMetrics(new SimpleMeterRegistry(), repository), kafkaHealth);
     }
 
     @AfterEach
