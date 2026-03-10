@@ -58,10 +58,12 @@ class OutboxPublisherMdcTest {
 
         publisher = new OutboxPublisher(repository, kafkaTemplate, props, objectMapper,
                 new OutboxMetrics(new SimpleMeterRegistry(), repository), kafkaHealth);
+        publisher.start();
     }
 
     @AfterEach
     void tearDown() {
+        publisher.stop();
         MDC.clear();
     }
 
