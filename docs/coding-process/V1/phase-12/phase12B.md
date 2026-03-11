@@ -73,6 +73,7 @@ CREATE TABLE decision_explanations (
     id                      BIGSERIAL PRIMARY KEY,
     decision_id             VARCHAR(255) NOT NULL,
     policy_version          VARCHAR(50),
+    policy_family           VARCHAR(50),
     classification          VARCHAR(100),
     outcome                 VARCHAR(50),
     decision_reason         TEXT NOT NULL,
@@ -86,6 +87,7 @@ CREATE TABLE decision_explanations (
 CREATE INDEX idx_explanations_classification ON decision_explanations(classification);
 CREATE INDEX idx_explanations_quality ON decision_explanations(quality_score);
 CREATE INDEX idx_explanations_created ON decision_explanations(created_at);
+CREATE INDEX idx_explanations_policy ON decision_explanations(policy_family, policy_version);
 ```
 
 **Curation criteria (automated, simple for V1):**
@@ -197,18 +199,49 @@ public interface DecisionMemoryService {
 
 public record RetrievalFilters(
     List<String> classifications,
-    Double minQualityScore
+    Double minQualityScore,
+    String policyFamily,
+    String minPolicyVersion
 ) {}
 ```
 
 **Defaults:**
 - `topK`: 3
 - `minQualityScore`: 0.5
+- `policyFamily`: current active policy family (auto-resolved)
+- `minPolicyVersion`: earliest compatible policy version (configurable)
+
+**Policy-lineage filtering:**
+
+Decisions in the explanation dataset were generated under different policy versions.
+Policies evolve — classifications get added, thresholds change, logic mutates.
+Retrieving decisions produced under obsolete policies risks incoherent AI suggestions
+that conflict with the current deterministic pipeline.
+
+The retrieval query MUST filter by policy lineage:
+
+```sql
+WHERE policy_version >= :minPolicyVersion
+  AND classification IN (:classifications)
+  AND quality_score >= :minQualityScore
+ORDER BY embedding <=> :queryVector
+LIMIT :topK
+```
+
+If `policyFamily` is set, additionally filter:
+```sql
+AND policy_version LIKE :policyFamily || '.%'
+```
+
+This ensures the AI only sees decisions consistent with current policy logic,
+avoiding semantic conflicts between AI suggestion and deterministic output.
 
 **Acceptance:**
 - retrieval logic isolated from advisor logic
 - top-k configurable
 - filtering by classification supported
+- retrieval filters by policy version — decisions from obsolete policies are excluded
+- policy version filter is configurable with a safe default (current family only)
 
 #### 12B.1.f — Context Injection into AI Prompts
 
@@ -240,6 +273,27 @@ Consider these historical patterns in your analysis.
 - prompts include curated historical context when available
 - retrieval failure does not block advisory (graceful degradation)
 - token growth remains bounded
+
+#### 12B.1.g — Embedding Re-indexing Lifecycle
+
+When the embedding model changes (version upgrade, provider switch), all cached
+embeddings become incompatible — vectors from different models are not comparable
+in the same vector space.
+
+**Rules:**
+- `embedding_model` column in both `embedding_cache` and `decision_embeddings` tracks provenance
+- Similarity search MUST compare vectors from the same model only:
+  ```sql
+  WHERE embedding_model = :currentModel
+  ```
+- On model change: background re-embedding job regenerates all vectors
+- During re-indexing: retrieval degrades gracefully (fewer results, not wrong results)
+- Old embeddings are retained until re-indexing completes, then archived
+
+**Acceptance:**
+- embedding model change triggers re-indexing
+- retrieval never mixes vectors from different models
+- system remains functional during re-indexing (graceful degradation)
 
 ---
 
@@ -327,6 +381,14 @@ Extend the basic sanitizer from Phase 12A:
 4. Retrieve top-3 similar decisions
 5. Verify relevance (same classification family)
 
+### 12B.V1b — Policy-Filtered Retrieval
+
+1. Insert decisions from policy v1 and policy v3
+2. Set `minPolicyVersion: v3`
+3. Query similar decisions
+4. Verify only v3 decisions are returned
+5. Verify v1 decisions are excluded even if semantically closer
+
 ### 12B.V2 — Embedding Cache
 
 1. Generate embedding for text X
@@ -366,11 +428,13 @@ Phase 12B is complete when:
 - [ ] Embedding cache prevents duplicate embedding generation
 - [ ] pgvector stores and indexes embeddings
 - [ ] Retrieval service finds similar historical decisions
+- [ ] Retrieval filters by policy lineage — obsolete policy decisions excluded
+- [ ] Embedding model change triggers re-indexing (no cross-model vector mixing)
 - [ ] Context injection enriches AI prompts with historical context
 - [ ] Ollama integration works for local model execution
 - [ ] Hybrid routing directs calls based on privacy level
 - [ ] RAG failure degrades gracefully (advisory without context)
-- [ ] All 5 verification scenarios pass
+- [ ] All 6 verification scenarios pass
 - [ ] All Phase 12A tests remain green
 
 ---
