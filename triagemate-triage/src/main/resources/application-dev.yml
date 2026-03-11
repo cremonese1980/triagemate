@@ -13,6 +13,8 @@ triagemate:
   ai:
     enabled: true
     provider: ollama
+    timeouts:
+      advisory: 30s
 
 logging:
   level:
