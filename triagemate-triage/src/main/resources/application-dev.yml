@@ -1,4 +1,6 @@
 spring:
+  autoconfigure:
+    exclude: org.springframework.ai.autoconfigure.anthropic.AnthropicAutoConfiguration
   datasource:
     url: jdbc:postgresql://localhost:5432/triagemate
     username: triagemate
@@ -6,6 +8,23 @@ spring:
 
   kafka:
     bootstrap-servers: localhost:29092
+
+triagemate:
+  ai:
+    enabled: ${AI_ENABLED:true}
+    provider: ${AI_PROVIDER:ollama}
+    model: ${AI_MODEL:llama3}
+    model-version: ${AI_MODEL_VERSION:latest}
+    allowed-classifications: ${AI_ALLOWED_CLASSIFICATIONS:NORMAL, DEVICE_ERROR}
+    timeouts:
+      advisory: 5s
+    cost:
+      max-per-decision-usd: 0.0031
+      max-daily-usd: 0.005
+      estimated-cost-usd: 0.003
+    validation:
+      min-confidence-for-suggestion: 0.70
+      min-confidence-for-override: 0.85
 
 logging:
   level:
@@ -15,7 +34,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,env
+        include: health,info,env,prometheus,metrics
   endpoint:
     env:
       show-values: always

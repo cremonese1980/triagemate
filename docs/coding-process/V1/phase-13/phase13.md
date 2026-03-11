@@ -53,24 +53,24 @@ v0.12.0 (Horizontal Scale) → Phase 13 (Decision Versioning) → v0.13.0
 
 ### Problem Statement
 
-**Attualmente:**
-- Processi evento ✅
-- Produci decisione ✅
-- Persisti marker idempotency ✅
-- Persisti outbox ✅
+**Current state:**
+- Event processing ✅
+- Decision production ✅
+- Idempotency marker persistence ✅
+- Outbox persistence ✅
 
-**Ma NON persisti:**
-- ❌ Versione della policy usata
-- ❌ Decision outcome completo
-- ❌ Input snapshot usato per decidere
-- ❌ Attributes snapshot al momento della decisione
+**But you do NOT persist:**
+- ❌ Version of the policy used
+- ❌ Full decision outcome
+- ❌ Input snapshot used for decisioning
+- ❌ Attributes snapshot at decision time
 
-**Quindi:**
-- ❌ Non puoi replayare decisioni storiche
-- ❌ Non puoi auditare storicamente le scelte
-- ❌ Non puoi confrontare policy nuove vs vecchie
-- ❌ Non puoi rilevare drift comportamentale
-- ❌ Non hai explainability governance-grade
+**Therefore:**
+- ❌ You cannot replay historical decisions
+- ❌ You cannot perform historical auditing of decisions
+- ❌ You cannot compare new vs old policy behavior
+- ❌ You cannot detect behavioral drift
+- ❌ You do not have governance-grade explainability
 
 ### Solution: Decision Artifact Persistence
 
@@ -133,7 +133,7 @@ CREATE INDEX idx_decisions_policy_version ON decisions(policy_version);
 CREATE INDEX idx_decisions_created_at ON decisions(created_at);
 ```
 
-**Campi minimi:**
+**Minimum fields:**
 - `decision_id` (UUID, PK) — unique identifier
 - `event_id` — link to input event (foreign key)
 - `policy_version` — policy version used (e.g., "1.0.0")
@@ -144,15 +144,15 @@ CREATE INDEX idx_decisions_created_at ON decisions(created_at);
 - `attributes_snapshot` (JSON) — computed attributes used
 - `created_at` — decision timestamp
 
-**Indici:**
+**Indexes:**
 - `(event_id)` — lookup decisions by event
 - `(policy_version)` — analyze decisions by policy
 - `(created_at)` — temporal queries
 
 **Acceptance:**
-- Persistibile via JPA
-- Queryable per `eventId`
-- Queryable per `policyVersion`
+- Persistable via JPA
+- Queryable by `eventId`
+- Queryable by `policyVersion`
 - Foreign key constraint enforced
 
 ---
@@ -206,7 +206,7 @@ public class DecisionRecord {
 ```
 
 **Acceptance:**
-- Mapping coerente con snapshot JSON
+- Mapping coherent with JSON snapshots
 - No lazy loading tricks
 - No business logic inside entity
 - Clean separation of concerns
@@ -253,7 +253,7 @@ public interface DecisionRecordRepository
 **Acceptance:**
 - `findByEventId` for lookup
 - `findByPolicyVersion` for policy analysis
-- Paginazione per replay batch processing
+- Pagination for replay batch processing
 
 ---
 
@@ -261,7 +261,7 @@ public interface DecisionRecordRepository
 
 #### 13.2.a — Introduce PolicyVersionProvider
 
-**Deliverable:** Componente semplice per version management
+**Deliverable:** Simple component for version management
 
 ```java
 package com.triagemate.triage.policy;
@@ -353,9 +353,9 @@ public class DecisionService {
 ```
 
 **Acceptance:**
-- Ogni decision persistita con version
-- Non sporca core decision logic
-- Attributes snapshot catturato
+- Every decision persisted with a version
+- Does not pollute core decision logic
+- Attributes snapshot captured
 
 ---
 
@@ -418,9 +418,9 @@ public class ReplayService {
 - `ReplayResult` with comparison
 
 **Acceptance:**
-- Non pubblica su Kafka (read-only operation)
-- Non modifica stato (no DB writes except audit log)
-- Solo calcolo comparativo
+- Does not publish to Kafka (read-only operation)
+- Does not modify state (no DB writes except audit log)
+- Comparison-only computation
 
 ---
 
@@ -502,8 +502,8 @@ POST /internal/replay/{decisionId}
 ```
 
 **Security:**
-- Solo profilo dev
-- Non esposto in docker/prod-like
+- Dev profile only
+- Not exposed in docker/prod-like environments
 - No authentication required (internal only)
 
 **Acceptance:**
@@ -517,7 +517,7 @@ POST /internal/replay/{decisionId}
 
 #### 13.4.a — Persist human-readable reason
 
-**Deliverable:** Non solo `reasonCode`, ma testo esplicativo
+**Deliverable:** Not only `reasonCode`, but also explicit explanatory text
 
 ```java
 public class DecisionResult {
@@ -547,7 +547,7 @@ DecisionResult result = DecisionResult.builder()
 
 #### 13.4.b — Deterministic attributes snapshot
 
-**Deliverable:** Garantire JSON serializzato ordinato
+**Deliverable:** Ensure deterministically ordered JSON serialization
 
 ```java
 @Configuration
@@ -570,9 +570,9 @@ public class ObjectMapperConfig {
 }
 ```
 
-**Garantire:**
-- JSON serializzato ordinato (keys sorted alphabetically)
-- Niente campi non deterministici (timestamps generati al volo)
+**Guarantee:**
+- JSON serialized in deterministic order (keys sorted alphabetically)
+- No non-deterministic fields (e.g., runtime-generated timestamps)
 - Consistent formatting
 
 **Acceptance:**
@@ -584,7 +584,7 @@ public class ObjectMapperConfig {
 
 #### 13.4.c — Audit completeness test
 
-**Deliverable:** Test che verifica completezza artifacts
+**Deliverable:** Test that verifies artifact completeness
 
 ```java
 @Test
@@ -615,8 +615,8 @@ void decisionPersisted_hasCompleteArtifacts() {
 ```
 
 **Test:**
-- Decision persistita
-- Replay produce stesso risultato con stessa policy version
+- Decision persisted
+- Replay produces the same outcome with the same policy version
 
 ```java
 @Test
@@ -665,7 +665,7 @@ class DecisionPersistenceTest {
         // When: Event is consumed
         kafkaTemplate.send("triagemate.ingest.input-received.v1", event);
         
-        // Then: Decision row presente
+        // Then: Decision row is present
         await().atMost(5.seconds).untilAsserted(() -> {
             Optional<DecisionRecord> decision = 
                 decisionRepository.findByEventId("evt-persist-001");
@@ -679,9 +679,9 @@ class DecisionPersistenceTest {
 ```
 
 **Acceptance:**
-- Evento processato
-- Decision row presente
-- `policyVersion` valorizzata
+- Event processed
+- Decision row present
+- `policyVersion` populated
 
 ---
 
@@ -720,15 +720,15 @@ void policyVersionChanged_replayDetectsDrift() {
 ```
 
 **Acceptance:**
-- Cambiare policy version
+- Policy version can be changed
 - Replay executed
-- Drift rilevato correttamente
+- Drift detected correctly
 
 ---
 
 #### 13.5.c — Backward compatibility
 
-**Deliverable:** Verify Phase 9–12 invarianti
+**Deliverable:** Verify Phase 9–12 invariants
 
 ```java
 @Test
@@ -802,11 +802,11 @@ Phase 13 is **DONE** when:
 - ✅ `DecisionRecord` JPA entity created
 - ✅ `DecisionRecordRepository` created and injected
 - ✅ `PolicyVersionProvider` implemented and injected
-- ✅ Decision artifacts persistiti (input snapshot, attributes, version)
-- ✅ Policy version tracciata in every decision
+- ✅ Decision artifacts persisted (input snapshot, attributes, version)
+- ✅ Policy version tracked in every decision
 - ✅ `ReplayService` implemented
-- ✅ Replay deterministico funzionante (same input + same policy = same output)
-- ✅ Drift detection base implementata (boolean flag)
+- ✅ Deterministic replay working (same input + same policy = same output)
+- ✅ Baseline drift detection implemented (boolean flag)
 - ✅ Explainability hardening complete (human-readable reasons)
 - ✅ All integration tests green:
     - Decision persistence test ✅
