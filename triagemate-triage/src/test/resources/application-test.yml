@@ -58,6 +58,16 @@ management:
         enabled: true
 
 triagemate:
+  ai:
+    enabled: false
+    provider: ollama
+    timeouts:
+      advisory: 3s
+    cost:
+      max-per-decision-usd: 0.01
+      max-daily-usd: 1.00
+      estimated-cost-usd: 0.01
+
   kafka:
     topics:
       input-received: triagemate.ingest.input-received.v1
