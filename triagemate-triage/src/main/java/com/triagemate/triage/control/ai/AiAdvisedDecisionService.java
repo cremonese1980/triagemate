@@ -16,6 +16,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Decorator around {@link DecisionService} that adds an AI advisory layer.
@@ -96,6 +97,7 @@ public class AiAdvisedDecisionService implements DecisionService {
 
     private AiDecisionAdvice getAiAdvice(DecisionContext<?> context, DecisionResult deterministicResult) {
         CompletableFuture<AiDecisionAdvice> future = null;
+        AtomicReference<Thread> aiThread = new AtomicReference<>();
         try {
             // Check budget before calling AI
             costTracker.checkBudget(properties.cost().maxPerDecisionUsd());
@@ -104,6 +106,7 @@ public class AiAdvisedDecisionService implements DecisionService {
 
             future = CompletableFuture.supplyAsync(
                     () -> {
+                        aiThread.set(Thread.currentThread());
                         // Apply circuit breaker + retry around the actual AI call
                         return Retry.decorateSupplier(retry,
                                 CircuitBreaker.decorateSupplier(circuitBreaker,
@@ -136,6 +139,10 @@ public class AiAdvisedDecisionService implements DecisionService {
         } catch (Exception e) {
             if (future != null && !future.isDone()) {
                 future.cancel(true);
+            }
+            Thread t = aiThread.get();
+            if (t != null) {
+                t.interrupt();
             }
             Throwable cause = e.getCause() != null ? e.getCause() : e;
             String errorType = cause instanceof TimeoutException ? "TIMEOUT" : "ERROR";
