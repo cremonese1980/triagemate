@@ -16,6 +16,7 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -105,6 +106,54 @@ class AiAdvisedDecisionServiceTest {
 
         assertEquals(DecisionOutcome.ACCEPT, result.outcome());
         assertEquals("deterministic-test", result.reason());
+    }
+
+    @Test
+    void timeout_fallsBackToDeterministic() {
+        AiAdvisoryProperties timeoutProperties = new AiAdvisoryProperties(
+                true, "test",
+                Set.of("DEVICE_ERROR", "NORMAL"),
+                new AiAdvisoryProperties.Timeouts(Duration.ofMillis(20)),
+                new AiAdvisoryProperties.Cost(0.05, 100.0)
+        );
+
+        AtomicBoolean interrupted = new AtomicBoolean(false);
+        StubAiAdvisor slowAdvisor = new StubAiAdvisor() {
+            @Override
+            public AiDecisionAdvice advise(DecisionContext<?> context, DecisionResult deterministicResult) {
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException e) {
+                    interrupted.set(true);
+                    Thread.currentThread().interrupt();
+                }
+                return super.advise(context, deterministicResult);
+            }
+        };
+        slowAdvisor.setAdvice(new AiDecisionAdvice(
+                "DEVICE_ERROR", 0.92, "High confidence match", true,
+                "test", "model", "v1", "1.0.0", "hash",
+                10, 20, 0.001, 50
+        ));
+
+        AiAdvisedDecisionService timeoutService = new AiAdvisedDecisionService(
+                stubDelegate,
+                slowAdvisor,
+                new AiAdviceValidator(timeoutProperties),
+                new StubAuditService(),
+                new AiCostTracker(timeoutProperties, meterRegistry),
+                new AiMetrics(meterRegistry),
+                CircuitBreakerRegistry.of(CircuitBreakerConfig.ofDefaults()).circuitBreaker("timeout"),
+                RetryRegistry.of(RetryConfig.custom().maxAttempts(1).build()).retry("timeout"),
+                Executors.newSingleThreadExecutor(),
+                timeoutProperties
+        );
+
+        DecisionResult result = timeoutService.decide(createContext());
+
+        assertEquals(DecisionOutcome.ACCEPT, result.outcome());
+        assertEquals(false, result.attributes().get("aiAdvicePresent"));
+        assertTrue(interrupted.get(), "AI task should be cancelled/interrupted on timeout");
     }
 
     private DecisionContext<?> createContext() {

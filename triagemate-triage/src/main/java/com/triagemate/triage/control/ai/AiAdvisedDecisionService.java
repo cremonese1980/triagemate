@@ -95,13 +95,14 @@ public class AiAdvisedDecisionService implements DecisionService {
     }
 
     private AiDecisionAdvice getAiAdvice(DecisionContext<?> context, DecisionResult deterministicResult) {
+        CompletableFuture<AiDecisionAdvice> future = null;
         try {
             // Check budget before calling AI
             costTracker.checkBudget(properties.cost().maxPerDecisionUsd());
 
             long timeoutMs = properties.timeouts().advisory().toMillis();
 
-            CompletableFuture<AiDecisionAdvice> future = CompletableFuture.supplyAsync(
+            future = CompletableFuture.supplyAsync(
                     () -> {
                         // Apply circuit breaker + retry around the actual AI call
                         return Retry.decorateSupplier(retry,
@@ -133,6 +134,9 @@ public class AiAdvisedDecisionService implements DecisionService {
             return AiDecisionAdvice.NONE;
 
         } catch (Exception e) {
+            if (future != null && !future.isDone()) {
+                future.cancel(true);
+            }
             Throwable cause = e.getCause() != null ? e.getCause() : e;
             String errorType = cause instanceof TimeoutException ? "TIMEOUT" : "ERROR";
             log.warn("AI advisory failed ({}): {}", errorType, cause.getMessage());
