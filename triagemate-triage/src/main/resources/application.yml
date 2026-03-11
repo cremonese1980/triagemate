@@ -42,7 +42,32 @@ logging:
     org.apache.coyote: WARN
     org.hibernate.validator: WARN
 
+  ai:
+    anthropic:
+      api-key: ${ANTHROPIC_API_KEY:}
+      chat:
+        options:
+          model: claude-sonnet-4-20250514
+          max-tokens: 500
+          temperature: 0.0
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      chat:
+        options:
+          model: ${OLLAMA_MODEL:llama3:8b}
+          temperature: 0.0
+
 triagemate:
+  ai:
+    enabled: ${AI_ENABLED:false}
+    provider: ${AI_PROVIDER:anthropic}
+    allowed-classifications: ${AI_ALLOWED_CLASSIFICATIONS:}
+    timeouts:
+      advisory: 5s
+    cost:
+      max-per-decision-usd: 0.05
+      max-daily-usd: 100.00
+
   kafka:
     topics:
       input-received: triagemate.ingest.input-received.v1
