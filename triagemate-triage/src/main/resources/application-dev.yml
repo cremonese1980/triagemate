@@ -1,4 +1,6 @@
 spring:
+  autoconfigure:
+    exclude: org.springframework.ai.autoconfigure.anthropic.AnthropicAutoConfiguration
   datasource:
     url: jdbc:postgresql://localhost:5432/triagemate
     username: triagemate

@@ -1,8 +1,25 @@
 spring:
   application:
     name: triagemate-triage
+  autoconfigure:
+    exclude: org.springframework.ai.autoconfigure.ollama.OllamaAutoConfiguration
   lifecycle:
     timeout-per-shutdown-phase: 30s
+
+  ai:
+    anthropic:
+      api-key: ${ANTHROPIC_API_KEY:}
+      chat:
+        options:
+          model: claude-sonnet-4-20250514
+          max-tokens: 500
+          temperature: 0.0
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      chat:
+        options:
+          model: ${OLLAMA_MODEL:llama3:8b}
+          temperature: 0.0
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
@@ -41,21 +58,6 @@ logging:
     org.apache.catalina: WARN
     org.apache.coyote: WARN
     org.hibernate.validator: WARN
-
-  ai:
-    anthropic:
-      api-key: ${ANTHROPIC_API_KEY:}
-      chat:
-        options:
-          model: claude-sonnet-4-20250514
-          max-tokens: 500
-          temperature: 0.0
-    ollama:
-      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
-      chat:
-        options:
-          model: ${OLLAMA_MODEL:llama3:8b}
-          temperature: 0.0
 
 triagemate:
   ai:
