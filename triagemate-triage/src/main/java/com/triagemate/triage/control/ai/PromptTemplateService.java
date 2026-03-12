@@ -14,7 +14,7 @@ import java.util.Map;
 @Component
 public class PromptTemplateService {
 
-    private static final String TEMPLATE_PATH = "prompts/advisory/v1.0.0-decision-advisor.txt";
+    private static final String TEMPLATE_PATH = "prompts/advisory/v1.0.1-decision-advisor.txt";
 
     private final String template;
     private final String promptHash;
