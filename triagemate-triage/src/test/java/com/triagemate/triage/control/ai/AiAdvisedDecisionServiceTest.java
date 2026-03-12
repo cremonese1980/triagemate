@@ -150,7 +150,7 @@ class AiAdvisedDecisionServiceTest {
 
         assertEquals(DecisionOutcome.ACCEPT, result.outcome());
         assertEquals(false, result.attributes().get("aiAdvicePresent"));
-        assertEquals("NONE", result.attributes().get("aiAdviceStatus"));
+        assertEquals("NO_ADVICE", result.attributes().get("aiAdviceStatus"));
     }
 
     private DecisionContext<?> createContext() {
