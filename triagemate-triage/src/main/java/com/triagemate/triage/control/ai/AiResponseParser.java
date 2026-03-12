@@ -4,13 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
 
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Component
 public class AiResponseParser {
-
-    private static final Pattern JSON_BLOCK = Pattern.compile("\\{[^{}]*}", Pattern.DOTALL);
 
     private final ObjectMapper objectMapper;
 
@@ -36,15 +32,43 @@ public class AiResponseParser {
             throw new AiResponseParseException("Empty AI response", null);
         }
         String trimmed = raw.strip();
-        if (trimmed.startsWith("{")) {
-            return trimmed;
+        int start = trimmed.indexOf('{');
+        if (start < 0) {
+            throw new AiResponseParseException("No JSON object found in AI response", null);
         }
-        // Extract first JSON object from markdown code block or mixed text
-        Matcher matcher = JSON_BLOCK.matcher(trimmed);
-        if (matcher.find()) {
-            return matcher.group();
+
+        boolean inString = false;
+        boolean escaping = false;
+        int depth = 0;
+
+        for (int i = start; i < trimmed.length(); i++) {
+            char c = trimmed.charAt(i);
+
+            if (escaping) {
+                escaping = false;
+                continue;
+            }
+            if (c == '\\') {
+                escaping = true;
+                continue;
+            }
+            if (c == '"') {
+                inString = !inString;
+                continue;
+            }
+            if (inString) {
+                continue;
+            }
+            if (c == '{') {
+                depth++;
+            } else if (c == '}') {
+                depth--;
+                if (depth == 0) {
+                    return trimmed.substring(start, i + 1);
+                }
+            }
         }
-        throw new AiResponseParseException("No JSON object found in AI response", null);
+        throw new AiResponseParseException("Unterminated JSON object in AI response", null);
     }
 
     private void validate(AiClassificationResponse response, Set<String> allowedClassifications) {

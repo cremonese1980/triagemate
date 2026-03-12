@@ -18,7 +18,7 @@ public class PromptTemplateService {
 
     private final String template;
     private final String promptHash;
-    private final String promptVersion = "1.0.0";
+    private final String promptVersion = "1.0.1";
 
     public PromptTemplateService() {
         this.template = loadResource(TEMPLATE_PATH);
