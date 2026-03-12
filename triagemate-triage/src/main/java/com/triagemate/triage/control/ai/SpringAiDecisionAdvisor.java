@@ -88,7 +88,9 @@ public class SpringAiDecisionAdvisor implements AiDecisionAdvisor {
         );
 
         Set<String> allowed = properties.allowedClassifications();
-        String classificationsStr = allowed.isEmpty() ? "ANY" : String.join(", ", allowed);
+        String classificationRule = allowed.isEmpty()
+                ? "free-form domain label (not restricted)"
+                : "one of: " + String.join(", ", allowed);
 
         return promptTemplateService.render(Map.of(
                 "classification", deterministicResult.outcome().name(),
@@ -96,7 +98,7 @@ public class SpringAiDecisionAdvisor implements AiDecisionAdvisor {
                 "reason", deterministicResult.reason() != null ? deterministicResult.reason() : "",
                 "eventType", context.eventType() != null ? context.eventType() : "",
                 "payloadSummary", payloadSummary,
-                "allowedClassifications", classificationsStr
+                "classificationRule", classificationRule
         ));
     }
 }

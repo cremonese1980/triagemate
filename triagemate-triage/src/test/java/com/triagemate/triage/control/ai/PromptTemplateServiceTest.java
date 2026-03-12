@@ -18,7 +18,7 @@ class PromptTemplateServiceTest {
                 "reason", "all policies passed",
                 "eventType", "device.telemetry",
                 "payloadSummary", "temperature=42",
-                "allowedClassifications", "DEVICE_ERROR, NORMAL"
+                "classificationRule", "one of: DEVICE_ERROR, NORMAL"
         ));
 
         assertTrue(result.contains("Classification: ACCEPT"));
@@ -26,12 +26,12 @@ class PromptTemplateServiceTest {
         assertTrue(result.contains("Reason: all policies passed"));
         assertTrue(result.contains("Event Type: device.telemetry"));
         assertTrue(result.contains("Payload Summary: temperature=42"));
-        assertTrue(result.contains("DEVICE_ERROR, NORMAL"));
+        assertTrue(result.contains("one of: DEVICE_ERROR, NORMAL"));
     }
 
     @Test
     void promptVersionIsSet() {
-        assertEquals("1.0.0", service.getPromptVersion());
+        assertEquals("1.0.1", service.getPromptVersion());
     }
 
     @Test

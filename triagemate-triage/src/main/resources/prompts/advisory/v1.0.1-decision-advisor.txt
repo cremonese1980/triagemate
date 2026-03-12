@@ -14,7 +14,7 @@ Analyze the deterministic decision and provide advisory input.
 Return your response as JSON only, with this exact schema:
 
 {
-  "suggestedClassification": "string (one of: {{allowedClassifications}})",
+  "suggestedClassification": "string ({{classificationRule}})",
   "confidence": number (0.0 to 1.0),
   "reasoning": "string (max 200 chars)",
   "recommendsOverride": boolean
@@ -22,6 +22,7 @@ Return your response as JSON only, with this exact schema:
 
 RULES:
 - Do not invent classifications outside the allowed list
+- If no allowed list is provided, return a concrete domain label and never use the literal value "ANY"
 - If you agree with the deterministic decision, set recommendsOverride to false
 - Only recommend override if confidence >= 0.85
 - Be concise in reasoning

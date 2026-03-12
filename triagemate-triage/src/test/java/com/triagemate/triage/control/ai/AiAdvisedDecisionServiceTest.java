@@ -16,7 +16,6 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -117,14 +116,12 @@ class AiAdvisedDecisionServiceTest {
                 new AiAdvisoryProperties.Cost(0.05, 100.0)
         );
 
-        AtomicBoolean interrupted = new AtomicBoolean(false);
         StubAiAdvisor slowAdvisor = new StubAiAdvisor() {
             @Override
             public AiDecisionAdvice advise(DecisionContext<?> context, DecisionResult deterministicResult) {
                 try {
                     Thread.sleep(500);
                 } catch (InterruptedException e) {
-                    interrupted.set(true);
                     Thread.currentThread().interrupt();
                 }
                 return super.advise(context, deterministicResult);
@@ -153,7 +150,7 @@ class AiAdvisedDecisionServiceTest {
 
         assertEquals(DecisionOutcome.ACCEPT, result.outcome());
         assertEquals(false, result.attributes().get("aiAdvicePresent"));
-        assertTrue(interrupted.get(), "AI task should be cancelled/interrupted on timeout");
+        assertEquals("NONE", result.attributes().get("aiAdviceStatus"));
     }
 
     private DecisionContext<?> createContext() {

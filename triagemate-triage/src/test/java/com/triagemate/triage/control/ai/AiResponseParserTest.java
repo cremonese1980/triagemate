@@ -48,6 +48,34 @@ class AiResponseParserTest {
     }
 
     @Test
+    void parsesNestedJsonObjectFromMixedText() {
+        String markdown = """
+                Advisory analysis follows.
+                {
+                  "suggestedClassification": "NORMAL",
+                  "confidence": 0.81,
+                  "reasoning": "Observed values are within expected range",
+                  "recommendsOverride": false,
+                  "details": {"source": "llama", "meta": {"lang": "en"}}
+                }
+                Final note: deterministic decision is acceptable.
+                """;
+
+        AiClassificationResponse response = parser.parse(markdown, allowed);
+
+        assertEquals("NORMAL", response.suggestedClassification());
+        assertEquals(0.81, response.confidence(), 0.001);
+    }
+
+    @Test
+    void throwsOnUnterminatedJsonObject() {
+        String broken = """
+                {"suggestedClassification":"NORMAL","confidence":0.8
+                """;
+        assertThrows(AiResponseParseException.class, () -> parser.parse(broken, allowed));
+    }
+
+    @Test
     void ignoresExtraFields() {
         String json = """
                 {
