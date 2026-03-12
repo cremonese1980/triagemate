@@ -48,7 +48,7 @@ public class SpringAiDecisionAdvisor implements AiDecisionAdvisor {
                     .call()
                     .content();
 
-            log.info("AI raw response: {}", rawResponse);
+            log.debug("AI raw response: {}", rawResponse);
 
 
             long latencyMs = System.currentTimeMillis() - start;
@@ -56,7 +56,7 @@ public class SpringAiDecisionAdvisor implements AiDecisionAdvisor {
             Set<String> allowed = properties.allowedClassifications();
             AiClassificationResponse parsed = responseParser.parse(rawResponse, allowed);
 
-            log.info("AI parsed: classification={}, confidence={}", parsed.suggestedClassification(), parsed.confidence());
+            log.debug("AI parsed: classification={}, confidence={}", parsed.suggestedClassification(), parsed.confidence());
 
 
             return new AiDecisionAdvice(
