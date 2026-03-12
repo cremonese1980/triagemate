@@ -41,6 +41,8 @@ public class SpringAiDecisionAdvisor implements AiDecisionAdvisor {
     public AiDecisionAdvice advise(DecisionContext<?> context, DecisionResult deterministicResult) {
         long start = System.currentTimeMillis();
         try {
+
+            log.info("Deterministic result: {}", deterministicResult.toString());
             String prompt = buildPrompt(context, deterministicResult);
 
             String rawResponse = chatClient.prompt()
@@ -49,8 +51,7 @@ public class SpringAiDecisionAdvisor implements AiDecisionAdvisor {
                     .content();
 
             log.info("AI raw response: {}", rawResponse);
-
-
+            
             long latencyMs = System.currentTimeMillis() - start;
 
             Set<String> allowed = properties.allowedClassifications();
