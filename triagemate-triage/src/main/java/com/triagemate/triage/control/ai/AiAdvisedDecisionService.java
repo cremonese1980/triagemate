@@ -145,6 +145,15 @@ public class AiAdvisedDecisionService implements DecisionService {
                 t.interrupt();
             }
             Throwable cause = e.getCause() != null ? e.getCause() : e;
+
+            // CallNotPermittedException from async execution gets wrapped in ExecutionException
+            if (cause instanceof CallNotPermittedException) {
+                log.warn("AI circuit breaker open, falling back to deterministic decision");
+                metrics.recordFallback("circuit_breaker_open");
+                auditService.recordError(context, "CIRCUIT_BREAKER_OPEN", cause.getMessage());
+                return AiDecisionAdvice.NONE;
+            }
+
             String errorType = cause instanceof TimeoutException ? "TIMEOUT" : "ERROR";
             log.warn("AI advisory failed ({}): {}", errorType, cause.getMessage());
             metrics.recordFallback(errorType.toLowerCase());
