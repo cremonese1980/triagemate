@@ -3,6 +3,7 @@ package com.triagemate.triage.control.ai;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.github.resilience4j.core.IntervalFunction;
 import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryConfig;
 import io.github.resilience4j.retry.RetryRegistry;
@@ -39,7 +40,8 @@ public class AiResilienceConfig {
     public Retry aiRetry() {
         RetryConfig config = RetryConfig.custom()
                 .maxAttempts(3)
-                .waitDuration(Duration.ofMillis(500))
+                .intervalFunction(IntervalFunction.ofExponentialBackoff(
+                        Duration.ofMillis(1000), 2))
                 .retryOnException(e -> e instanceof TransientAiException)
                 .ignoreExceptions(PermanentAiException.class, BudgetExceededException.class)
                 .build();

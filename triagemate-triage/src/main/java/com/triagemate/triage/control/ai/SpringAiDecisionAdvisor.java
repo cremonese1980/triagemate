@@ -5,6 +5,7 @@ import com.triagemate.triage.control.decision.DecisionResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.web.client.HttpStatusCodeException;
 
 import java.util.Map;
 import java.util.Set;
@@ -79,8 +80,26 @@ public class SpringAiDecisionAdvisor implements AiDecisionAdvisor {
         } catch (Exception e) {
             long latencyMs = System.currentTimeMillis() - start;
             log.warn("AI advisory call failed after {}ms: {}", latencyMs, e.getMessage());
-            throw new TransientAiException("AI provider error: " + e.getMessage(), e);
+            throw classifyException(e);
         }
+    }
+
+    /* visible for testing */
+    AiAdvisoryException classifyException(Exception e) {
+        Throwable cause = e;
+        while (cause != null) {
+            if (cause instanceof HttpStatusCodeException httpEx) {
+                int status = httpEx.getStatusCode().value();
+                if (status == 429 || status >= 500) {
+                    return new TransientAiException(
+                            "AI provider error (HTTP " + status + "): " + httpEx.getMessage(), e);
+                }
+                return new PermanentAiException(
+                        "AI provider error (HTTP " + status + "): " + httpEx.getMessage(), e);
+            }
+            cause = cause.getCause();
+        }
+        return new TransientAiException("AI provider error: " + e.getMessage(), e);
     }
 
     private String buildPrompt(DecisionContext<?> context, DecisionResult deterministicResult) {
