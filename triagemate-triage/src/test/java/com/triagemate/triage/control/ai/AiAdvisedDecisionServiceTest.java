@@ -338,7 +338,7 @@ class AiAdvisedDecisionServiceTest {
     }
 
     static class StubAuditService extends AiAuditService {
-        StubAuditService() { super(null); }
+        StubAuditService() { super(record -> {}); }
 
         @Override
         public void record(DecisionContext<?> context, DecisionResult deterministicResult,

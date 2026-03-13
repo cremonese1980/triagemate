@@ -158,7 +158,7 @@ class AiAdvisoryScenariosTest {
 
     static class NoopAuditService extends AiAuditService {
         NoopAuditService() {
-            super(null);
+            super(record -> {});
         }
 
         @Override

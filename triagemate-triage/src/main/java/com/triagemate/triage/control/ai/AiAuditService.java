@@ -4,28 +4,19 @@ import com.triagemate.triage.control.decision.DecisionContext;
 import com.triagemate.triage.control.decision.DecisionResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+
+import java.util.Map;
 
 @Component
 public class AiAuditService {
 
     private static final Logger log = LoggerFactory.getLogger(AiAuditService.class);
 
-    private static final String INSERT_SQL = """
-            INSERT INTO ai_decision_audit (
-                decision_id, event_id, provider, model, model_version,
-                prompt_version, prompt_hash, confidence, suggested_classification,
-                recommends_override, reasoning, accepted_by_validator, rejection_reason,
-                input_tokens, output_tokens, cost_usd, latency_ms,
-                error_type, error_message
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """;
+    private final AiAuditRepository repository;
 
-    private final JdbcTemplate jdbcTemplate;
-
-    public AiAuditService(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
+    public AiAuditService(AiAuditRepository repository) {
+        this.repository = repository;
     }
 
     public void record(
@@ -34,48 +25,48 @@ public class AiAuditService {
             AiDecisionAdvice advice,
             ValidatedAdvice validated
     ) {
-        try {
-            jdbcTemplate.update(INSERT_SQL,
-                    context.eventId(),                              // decision_id
-                    context.eventId(),                              // event_id
-                    advice.provider(),
-                    advice.model(),
-                    advice.modelVersion(),
-                    advice.promptVersion(),
-                    advice.promptHash(),
-                    advice.confidence(),
-                    advice.suggestedClassification(),
-                    advice.recommendsOverride(),
-                    advice.reasoning(),
-                    validated.isAccepted(),
-                    validated.rejectionReason(),
-                    advice.inputTokens(),
-                    advice.outputTokens(),
-                    advice.costUsd(),
-                    advice.latencyMs(),
-                    null,                                           // error_type
-                    null                                            // error_message
-            );
-        } catch (Exception e) {
-            log.error("Failed to persist AI audit record for event {}: {}",
-                    context.eventId(), e.getMessage());
-        }
+        String decisionId = resolveDecisionId(context, deterministicResult);
+        AiAuditRecord record = AiAuditRecord.fromAdvice(
+                decisionId,
+                context.eventId(),
+                advice,
+                validated
+        );
+        saveSafely(context.eventId(), record);
     }
 
     public void recordError(DecisionContext<?> context, String errorType, String errorMessage) {
+        String decisionId = resolveDecisionId(context, null);
+        AiAuditRecord record = AiAuditRecord.fromError(
+                decisionId,
+                context.eventId(),
+                errorType,
+                errorMessage
+        );
+        saveSafely(context.eventId(), record);
+    }
+
+    private void saveSafely(String eventId, AiAuditRecord record) {
         try {
-            jdbcTemplate.update(INSERT_SQL,
-                    context.eventId(),
-                    context.eventId(),
-                    null, null, null, null, null,
-                    null, null, null, null, null, null,
-                    null, null, null, null,
-                    errorType,
-                    errorMessage
-            );
+            repository.save(record);
         } catch (Exception e) {
-            log.error("Failed to persist AI error audit for event {}: {}",
-                    context.eventId(), e.getMessage());
+            log.error("Failed to persist AI audit record for event {}: {}", eventId, e.getMessage());
         }
+    }
+
+    private String resolveDecisionId(DecisionContext<?> context, DecisionResult deterministicResult) {
+        if (deterministicResult != null) {
+            Map<String, Object> attributes = deterministicResult.attributes();
+            if (attributes != null && attributes.get("decisionId") instanceof String decisionId && !decisionId.isBlank()) {
+                return decisionId;
+            }
+        }
+        if (context.trace() != null) {
+            String requestId = context.trace().get("requestId");
+            if (requestId != null && !requestId.isBlank()) {
+                return requestId;
+            }
+        }
+        return context.eventId();
     }
 }
