@@ -18,15 +18,16 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 
+import org.slf4j.MDC;
+
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.Executors;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -150,6 +151,46 @@ class AiFallbackAndResilienceTest {
             assertEquals(true, result.attributes().get("aiAdvicePresent"));
             assertEquals(CircuitBreaker.State.CLOSED, cb.getState(),
                     "Circuit breaker should be CLOSED after successful call in HALF_OPEN");
+        }
+
+        @Test
+        void circuitBreaker_halfOpenPartialFailure_reopens() {
+            CircuitBreakerConfig cbConfig = CircuitBreakerConfig.custom()
+                    .failureRateThreshold(50)
+                    .slidingWindowType(CircuitBreakerConfig.SlidingWindowType.COUNT_BASED)
+                    .slidingWindowSize(4)
+                    .minimumNumberOfCalls(4)
+                    .waitDurationInOpenState(Duration.ofMillis(100))
+                    .permittedNumberOfCallsInHalfOpenState(2)
+                    .recordExceptions(TransientAiException.class)
+                    .ignoreExceptions(PermanentAiException.class, BudgetExceededException.class)
+                    .build();
+            CircuitBreaker cb = CircuitBreakerRegistry.of(cbConfig).circuitBreaker("cb-half-open-fail");
+
+            Retry noRetry = RetryRegistry.of(RetryConfig.custom()
+                    .maxAttempts(1).build()).retry("no-retry-hof");
+
+            CountingAdvisor advisor = new CountingAdvisor();
+            advisor.setThrowException(new TransientAiException("server error"));
+
+            AiAdvisedDecisionService service = buildService(advisor, cb, noRetry);
+
+            // Drive circuit breaker to OPEN
+            for (int i = 0; i < 4; i++) {
+                service.decide(createContext());
+            }
+            assertEquals(CircuitBreaker.State.OPEN, cb.getState());
+
+            // Transition to HALF_OPEN
+            cb.transitionToHalfOpenState();
+            assertEquals(CircuitBreaker.State.HALF_OPEN, cb.getState());
+
+            // Keep advisor failing — half-open calls should fail and reopen the breaker
+            service.decide(createContext());
+            service.decide(createContext());
+
+            assertEquals(CircuitBreaker.State.OPEN, cb.getState(),
+                    "Circuit breaker should re-OPEN after failures in HALF_OPEN state");
         }
     }
 
@@ -509,6 +550,253 @@ class AiFallbackAndResilienceTest {
                     "Expected budget_exceeded fallback metric >= 1, got " + budgetCount);
             assertEquals(0, advisor.getCallCount(),
                     "AI advisor should NOT be called when budget is exceeded");
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // Group F: Concurrent Fallback Safety
+    // ──────────────────────────────────────────────────────────────
+
+    @Nested
+    class ConcurrentFallbackTests {
+
+        @Test
+        void concurrentCalls_allFallBackSafely() throws Exception {
+            CircuitBreaker cb = CircuitBreakerRegistry.of(CircuitBreakerConfig.ofDefaults())
+                    .circuitBreaker("concurrent");
+            Retry noRetry = RetryRegistry.of(RetryConfig.custom()
+                    .maxAttempts(1).build()).retry("concurrent");
+
+            CountingAdvisor slowFailingAdvisor = new CountingAdvisor() {
+                @Override
+                public AiDecisionAdvice advise(DecisionContext<?> context, DecisionResult deterministicResult) {
+                    super.advise(context, deterministicResult);
+                    try { Thread.sleep(50); } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                    throw new TransientAiException("slow failure");
+                }
+            };
+
+            AiAdvisoryProperties shortTimeout = new AiAdvisoryProperties(
+                    true, "test",
+                    Set.of("DEVICE_ERROR", "NORMAL"),
+                    new AiAdvisoryProperties.Timeouts(Duration.ofMillis(20)),
+                    new AiAdvisoryProperties.Cost(0.05, 100.0),
+                    new AiAdvisoryProperties.Validation(0.70, 0.85)
+            );
+
+            AiAdvisedDecisionService service = new AiAdvisedDecisionService(
+                    stubDelegate, slowFailingAdvisor,
+                    new AiAdviceValidator(shortTimeout),
+                    stubAudit,
+                    new AiCostTracker(shortTimeout, meterRegistry),
+                    new AiMetrics(meterRegistry),
+                    cb, noRetry,
+                    Executors.newFixedThreadPool(4),
+                    shortTimeout
+            );
+
+            int threadCount = 8;
+            ExecutorService pool = Executors.newFixedThreadPool(threadCount);
+            CountDownLatch startGate = new CountDownLatch(1);
+            CountDownLatch doneLatch = new CountDownLatch(threadCount);
+            ConcurrentLinkedQueue<DecisionResult> results = new ConcurrentLinkedQueue<>();
+            ConcurrentLinkedQueue<Throwable> errors = new ConcurrentLinkedQueue<>();
+
+            for (int i = 0; i < threadCount; i++) {
+                pool.submit(() -> {
+                    try {
+                        startGate.await();
+                        results.add(service.decide(createContext()));
+                    } catch (Throwable t) {
+                        errors.add(t);
+                    } finally {
+                        doneLatch.countDown();
+                    }
+                });
+            }
+
+            startGate.countDown(); // release all threads at once
+            assertTrue(doneLatch.await(10, TimeUnit.SECONDS), "All threads should complete within 10s");
+            pool.shutdownNow();
+
+            assertTrue(errors.isEmpty(), "No thread should throw an uncaught exception: " + errors);
+            assertEquals(threadCount, results.size(), "All threads should produce a result");
+
+            for (DecisionResult r : results) {
+                assertEquals(DecisionOutcome.ACCEPT, r.outcome(),
+                        "Every concurrent call should fall back to deterministic ACCEPT");
+            }
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // Group G: MDC Propagation to AI Executor Threads
+    // ──────────────────────────────────────────────────────────────
+
+    @Nested
+    class MdcPropagationTests {
+
+        @Test
+        void mdcContext_propagatedToAiExecutorThread() {
+            AtomicReference<Map<String, String>> capturedMdc = new AtomicReference<>();
+
+            AiDecisionAdvisor mdcCapturingAdvisor = (context, deterministicResult) -> {
+                capturedMdc.set(MDC.getCopyOfContextMap());
+                return validAdvice();
+            };
+
+            // Use a ThreadPoolTaskExecutor with MdcTaskDecorator (same as production config)
+            org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor executor =
+                    new org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor();
+            executor.setCorePoolSize(1);
+            executor.setMaxPoolSize(1);
+            executor.setQueueCapacity(10);
+            executor.setTaskDecorator(new com.triagemate.triage.config.MdcTaskDecorator());
+            executor.initialize();
+
+            CircuitBreaker cb = CircuitBreakerRegistry.of(CircuitBreakerConfig.ofDefaults())
+                    .circuitBreaker("mdc-test");
+            Retry noRetry = RetryRegistry.of(RetryConfig.custom()
+                    .maxAttempts(1).build()).retry("mdc-test");
+
+            AiAdvisedDecisionService service = new AiAdvisedDecisionService(
+                    stubDelegate, mdcCapturingAdvisor,
+                    new AiAdviceValidator(properties),
+                    stubAudit,
+                    new AiCostTracker(properties, meterRegistry),
+                    new AiMetrics(meterRegistry),
+                    cb, noRetry, executor, properties
+            );
+
+            // Set MDC on the calling thread
+            MDC.put("traceId", "trace-abc-123");
+            MDC.put("eventId", "evt-mdc-test");
+            try {
+                DecisionResult result = service.decide(createContext());
+                assertEquals(true, result.attributes().get("aiAdvicePresent"));
+
+                assertNotNull(capturedMdc.get(), "MDC context should be captured by AI thread");
+                assertEquals("trace-abc-123", capturedMdc.get().get("traceId"),
+                        "traceId should propagate from caller to AI executor thread");
+                assertEquals("evt-mdc-test", capturedMdc.get().get("eventId"),
+                        "eventId should propagate from caller to AI executor thread");
+            } finally {
+                MDC.clear();
+                executor.shutdown();
+            }
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // Group H: Cost Accumulation & Reset Lifecycle
+    // ──────────────────────────────────────────────────────────────
+
+    @Nested
+    class CostTrackingTests {
+
+        @Test
+        void costAccumulation_acrossMultipleDecisions() {
+            AiAdvisoryProperties costProps = new AiAdvisoryProperties(
+                    true, "test",
+                    Set.of("DEVICE_ERROR", "NORMAL"),
+                    new AiAdvisoryProperties.Timeouts(Duration.ofSeconds(5)),
+                    new AiAdvisoryProperties.Cost(0.05, 0.10),
+                    new AiAdvisoryProperties.Validation(0.70, 0.85)
+            );
+
+            AiCostTracker costTracker = new AiCostTracker(costProps, meterRegistry);
+
+            CountingAdvisor advisor = new CountingAdvisor();
+            advisor.setAdvice(new AiDecisionAdvice(
+                    "DEVICE_ERROR", 0.92, "match", true,
+                    "test", "model", "v1", "1.0.0", "hash",
+                    10, 20, 0.03, 50 // $0.03 per call
+            ));
+
+            CircuitBreaker cb = CircuitBreakerRegistry.of(CircuitBreakerConfig.ofDefaults())
+                    .circuitBreaker("cost-accumulate");
+            Retry noRetry = RetryRegistry.of(RetryConfig.custom()
+                    .maxAttempts(1).build()).retry("cost-accumulate");
+
+            AiAdvisedDecisionService service = new AiAdvisedDecisionService(
+                    stubDelegate, advisor,
+                    new AiAdviceValidator(costProps),
+                    stubAudit, costTracker,
+                    new AiMetrics(meterRegistry),
+                    cb, noRetry, Executors.newSingleThreadExecutor(), costProps
+            );
+
+            // First call: $0.03 → should succeed (daily budget $0.10)
+            DecisionResult r1 = service.decide(createContext());
+            assertEquals(true, r1.attributes().get("aiAdvicePresent"));
+            assertEquals(0.03, costTracker.getDailyCostUsd(), 0.001);
+
+            // Second call: $0.03 → cumulative $0.06 → should succeed
+            DecisionResult r2 = service.decide(createContext());
+            assertEquals(true, r2.attributes().get("aiAdvicePresent"));
+            assertEquals(0.06, costTracker.getDailyCostUsd(), 0.001);
+
+            // Third call: $0.03 → cumulative $0.09 → should succeed
+            DecisionResult r3 = service.decide(createContext());
+            assertEquals(true, r3.attributes().get("aiAdvicePresent"));
+            assertEquals(0.09, costTracker.getDailyCostUsd(), 0.001);
+
+            // Fourth call: would push to $0.12 > $0.10 → budget exceeded → fallback
+            DecisionResult r4 = service.decide(createContext());
+            assertEquals(false, r4.attributes().get("aiAdvicePresent"),
+                    "Fourth call should fall back because cumulative cost would exceed daily budget");
+        }
+
+        @Test
+        void dailyCostReset_allowsNewCallsAfterReset() {
+            AiAdvisoryProperties costProps = new AiAdvisoryProperties(
+                    true, "test",
+                    Set.of("DEVICE_ERROR", "NORMAL"),
+                    new AiAdvisoryProperties.Timeouts(Duration.ofSeconds(5)),
+                    new AiAdvisoryProperties.Cost(0.05, 0.04),
+                    new AiAdvisoryProperties.Validation(0.70, 0.85)
+            );
+
+            AiCostTracker costTracker = new AiCostTracker(costProps, meterRegistry);
+
+            CountingAdvisor advisor = new CountingAdvisor();
+            advisor.setAdvice(new AiDecisionAdvice(
+                    "DEVICE_ERROR", 0.92, "match", true,
+                    "test", "model", "v1", "1.0.0", "hash",
+                    10, 20, 0.03, 50
+            ));
+
+            CircuitBreaker cb = CircuitBreakerRegistry.of(CircuitBreakerConfig.ofDefaults())
+                    .circuitBreaker("cost-reset");
+            Retry noRetry = RetryRegistry.of(RetryConfig.custom()
+                    .maxAttempts(1).build()).retry("cost-reset");
+
+            AiAdvisedDecisionService service = new AiAdvisedDecisionService(
+                    stubDelegate, advisor,
+                    new AiAdviceValidator(costProps),
+                    stubAudit, costTracker,
+                    new AiMetrics(meterRegistry),
+                    cb, noRetry, Executors.newSingleThreadExecutor(), costProps
+            );
+
+            // First call: $0.03 → succeeds
+            DecisionResult r1 = service.decide(createContext());
+            assertEquals(true, r1.attributes().get("aiAdvicePresent"));
+
+            // Second call: would push to $0.06 > $0.04 → budget exceeded
+            DecisionResult r2 = service.decide(createContext());
+            assertEquals(false, r2.attributes().get("aiAdvicePresent"));
+
+            // Reset daily cost (simulates midnight rollover)
+            costTracker.resetDailyCost();
+            assertEquals(0.0, costTracker.getDailyCostUsd(), 0.001);
+
+            // Third call: budget is fresh, $0.03 < $0.04 → should succeed again
+            DecisionResult r3 = service.decide(createContext());
+            assertEquals(true, r3.attributes().get("aiAdvicePresent"),
+                    "After daily cost reset, AI calls should be permitted again");
         }
     }
 

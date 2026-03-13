@@ -101,6 +101,76 @@ class AiAuditServiceTest {
     }
 
     @Test
+    void record_shouldPersistRejectedAdviceWithRejectionReason() {
+        AiAuditRepository repository = mock(AiAuditRepository.class);
+        AiAuditService service = new AiAuditService(repository);
+
+        DecisionContext<?> context = DecisionContext.of(
+                "evt-006", "type", 1, Instant.now(), Map.of(), "payload"
+        );
+
+        AiDecisionAdvice advice = new AiDecisionAdvice(
+                "UNKNOWN_CLASS", 0.55, "Low confidence AI signal", false,
+                "anthropic", "claude", "sonnet-4", "1.0.1", "hash",
+                8, 15, 0.001, 90
+        );
+
+        service.record(context,
+                DecisionResult.of(DecisionOutcome.ACCEPT, "det", Map.of(), ReasonCode.ACCEPTED_BY_DEFAULT, "ok"),
+                advice,
+                ValidatedAdvice.rejected(advice, "Confidence 0.55 below minimum 0.70"));
+
+        verify(repository).save(argThat(record ->
+                record.eventId().equals("evt-006")
+                        && Boolean.FALSE.equals(record.acceptedByValidator())
+                        && record.rejectionReason().equals("Confidence 0.55 below minimum 0.70")
+                        && record.suggestedClassification().equals("UNKNOWN_CLASS")
+                        && record.reasoning().equals("Low confidence AI signal")
+                        && record.inputTokens() == 8
+                        && record.outputTokens() == 15
+        ));
+    }
+
+    @Test
+    void record_shouldPreserveAllFieldsFromAdvice() {
+        AiAuditRepository repository = mock(AiAuditRepository.class);
+        AiAuditService service = new AiAuditService(repository);
+
+        DecisionContext<?> context = DecisionContext.of(
+                "evt-007", "type", 1, Instant.now(), Map.of(), "payload"
+        );
+
+        AiDecisionAdvice advice = new AiDecisionAdvice(
+                "DEVICE_ERROR", 0.95, "Strong signal from event features", true,
+                "anthropic", "claude-sonnet", "sonnet-4-20250514", "1.0.1", "abc123hash",
+                42, 88, 0.0047, 234
+        );
+
+        service.record(context,
+                DecisionResult.of(DecisionOutcome.ACCEPT, "det", Map.of(), ReasonCode.ACCEPTED_BY_DEFAULT, "ok"),
+                advice,
+                ValidatedAdvice.accepted(advice));
+
+        verify(repository).save(argThat(record ->
+                record.provider().equals("anthropic")
+                        && record.model().equals("claude-sonnet")
+                        && record.modelVersion().equals("sonnet-4-20250514")
+                        && record.promptVersion().equals("1.0.1")
+                        && record.promptHash().equals("abc123hash")
+                        && record.confidence() == 0.95
+                        && record.suggestedClassification().equals("DEVICE_ERROR")
+                        && Boolean.TRUE.equals(record.recommendsOverride())
+                        && record.reasoning().equals("Strong signal from event features")
+                        && record.inputTokens() == 42
+                        && record.outputTokens() == 88
+                        && Math.abs(record.costUsd() - 0.0047) < 0.0001
+                        && record.latencyMs() == 234
+                        && record.errorType() == null
+                        && record.errorMessage() == null
+        ));
+    }
+
+    @Test
     void record_shouldSwallowPersistenceExceptions() {
         AiAuditRepository repository = mock(AiAuditRepository.class);
         doThrow(new RuntimeException("db down")).when(repository).save(any(AiAuditRecord.class));
