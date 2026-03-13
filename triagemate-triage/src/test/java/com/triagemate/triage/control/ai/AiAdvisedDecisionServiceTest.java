@@ -15,7 +15,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -196,6 +198,105 @@ class AiAdvisedDecisionServiceTest {
         );
 
         DecisionResult result = budgetService.decide(createContext());
+
+        assertEquals(DecisionOutcome.ACCEPT, result.outcome());
+        assertEquals(false, result.attributes().get("aiAdvicePresent"));
+        assertEquals("NO_ADVICE", result.attributes().get("aiAdviceStatus"));
+    }
+
+    @Test
+    void transientError_retriedUntilSuccess() {
+        AtomicInteger attempts = new AtomicInteger();
+        AiDecisionAdvisor flakyAdvisor = (context, deterministicResult) -> {
+            int current = attempts.incrementAndGet();
+            if (current < 3) {
+                throw new TransientAiException("temporary failure " + current);
+            }
+            return new AiDecisionAdvice(
+                    "DEVICE_ERROR", 0.90, "Recovered after retries", true,
+                    "test", "model", "v1", "1.0.0", "hash",
+                    10, 20, 0.001, 50
+            );
+        };
+
+        Retry retry = RetryRegistry.of(RetryConfig.custom()
+                .maxAttempts(3)
+                .retryOnException(e -> e instanceof TransientAiException)
+                .build()).retry("retry-transient");
+
+        AiAdvisedDecisionService retryService = new AiAdvisedDecisionService(
+                stubDelegate,
+                flakyAdvisor,
+                new AiAdviceValidator(properties),
+                new StubAuditService(),
+                new AiCostTracker(properties, meterRegistry),
+                new AiMetrics(meterRegistry),
+                CircuitBreakerRegistry.of(CircuitBreakerConfig.ofDefaults()).circuitBreaker("retry-transient"),
+                retry,
+                Executors.newSingleThreadExecutor(),
+                properties
+        );
+
+        DecisionResult result = retryService.decide(createContext());
+
+        assertEquals(3, attempts.get());
+        assertEquals("ACCEPTED", result.attributes().get("aiAdviceStatus"));
+        assertEquals(true, result.attributes().get("aiAdviceAccepted"));
+    }
+
+    @Test
+    void permanentError_isNotRetriedAndFallsBack() {
+        AtomicInteger attempts = new AtomicInteger();
+        AiDecisionAdvisor permanentFailureAdvisor = (context, deterministicResult) -> {
+            attempts.incrementAndGet();
+            throw new PermanentAiException("invalid request");
+        };
+
+        Retry retry = RetryRegistry.of(RetryConfig.custom()
+                .maxAttempts(3)
+                .retryOnException(e -> e instanceof TransientAiException)
+                .ignoreExceptions(PermanentAiException.class)
+                .build()).retry("retry-permanent");
+
+        AiAdvisedDecisionService retryService = new AiAdvisedDecisionService(
+                stubDelegate,
+                permanentFailureAdvisor,
+                new AiAdviceValidator(properties),
+                new StubAuditService(),
+                new AiCostTracker(properties, meterRegistry),
+                new AiMetrics(meterRegistry),
+                CircuitBreakerRegistry.of(CircuitBreakerConfig.ofDefaults()).circuitBreaker("retry-permanent"),
+                retry,
+                Executors.newSingleThreadExecutor(),
+                properties
+        );
+
+        DecisionResult result = retryService.decide(createContext());
+
+        assertEquals(1, attempts.get());
+        assertEquals("NO_ADVICE", result.attributes().get("aiAdviceStatus"));
+    }
+
+    @Test
+    void queueFull_rejectedExecutionFallsBack() {
+        Executor rejectingExecutor = command -> {
+            throw new java.util.concurrent.RejectedExecutionException("queue full");
+        };
+
+        AiAdvisedDecisionService rejectingService = new AiAdvisedDecisionService(
+                stubDelegate,
+                stubAdvisor,
+                new AiAdviceValidator(properties),
+                new StubAuditService(),
+                new AiCostTracker(properties, meterRegistry),
+                new AiMetrics(meterRegistry),
+                CircuitBreakerRegistry.of(CircuitBreakerConfig.ofDefaults()).circuitBreaker("queue-full"),
+                RetryRegistry.of(RetryConfig.custom().maxAttempts(1).build()).retry("queue-full"),
+                rejectingExecutor,
+                properties
+        );
+
+        DecisionResult result = rejectingService.decide(createContext());
 
         assertEquals(DecisionOutcome.ACCEPT, result.outcome());
         assertEquals(false, result.attributes().get("aiAdvicePresent"));
