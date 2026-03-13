@@ -26,10 +26,12 @@ class AiAdvisoryScenariosTest {
     @Test
     void allowlistStrict_acceptsAdviceWhenClassificationIsAllowed() {
         AiAdviceValidator validator = new AiAdviceValidator(new AiAdvisoryProperties(
-                true, "test",
+                true,
+                "test",
                 Set.of("DEVICE_ERROR", "NORMAL"),
                 new AiAdvisoryProperties.Timeouts(Duration.ofSeconds(5)),
-                new AiAdvisoryProperties.Cost(0.05, 100.0)
+                new AiAdvisoryProperties.Cost(0.05, 100.0),
+                new AiAdvisoryProperties.Validation(0.70, 0.85)
         ));
 
         AiDecisionAdvice advice = new AiDecisionAdvice(
@@ -49,7 +51,8 @@ class AiAdvisoryScenariosTest {
                 true, "test",
                 Set.of("DEVICE_ERROR", "NORMAL"),
                 new AiAdvisoryProperties.Timeouts(Duration.ofSeconds(5)),
-                new AiAdvisoryProperties.Cost(0.05, 100.0)
+                new AiAdvisoryProperties.Cost(0.05, 100.0),
+                new AiAdvisoryProperties.Validation(0.70, 0.85)
         ));
 
         AiDecisionAdvice advice = new AiDecisionAdvice(
@@ -69,7 +72,8 @@ class AiAdvisoryScenariosTest {
                 true, "test",
                 Set.of("DEVICE_ERROR", "NORMAL"),
                 new AiAdvisoryProperties.Timeouts(Duration.ofMillis(20)),
-                new AiAdvisoryProperties.Cost(0.05, 100.0)
+                new AiAdvisoryProperties.Cost(0.05, 100.0),
+                new AiAdvisoryProperties.Validation(0.70, 0.85)
         );
 
         AiAdvisedDecisionService service = new AiAdvisedDecisionService(

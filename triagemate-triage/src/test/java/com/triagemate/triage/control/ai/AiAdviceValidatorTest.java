@@ -24,7 +24,8 @@ class AiAdviceValidatorTest {
                 true, "test",
                 Set.of("DEVICE_ERROR", "NETWORK_ISSUE", "NORMAL"),
                 new AiAdvisoryProperties.Timeouts(Duration.ofSeconds(5)),
-                new AiAdvisoryProperties.Cost(0.05, 100.0)
+                new AiAdvisoryProperties.Cost(0.05, 100.0),
+                new AiAdvisoryProperties.Validation(0.70, 0.85)
         );
         validator = new AiAdviceValidator(props);
         deterministicResult = deterministicResult();

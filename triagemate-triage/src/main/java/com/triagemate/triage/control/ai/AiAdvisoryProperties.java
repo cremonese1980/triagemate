@@ -1,6 +1,7 @@
 package com.triagemate.triage.control.ai;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.ConstructorBinding;
 
 import java.time.Duration;
 import java.util.Objects;
@@ -22,16 +23,6 @@ public record AiAdvisoryProperties(
         timeouts = Objects.requireNonNullElse(timeouts, new Timeouts(Duration.ofSeconds(5)));
         cost = Objects.requireNonNullElse(cost, new Cost(0.05, 100.00));
         validation = Objects.requireNonNullElse(validation, new Validation(0.70, 0.85));
-    }
-
-    public AiAdvisoryProperties(
-            boolean enabled,
-            String provider,
-            Set<String> allowedClassifications,
-            Timeouts timeouts,
-            Cost cost
-    ) {
-        this(enabled, provider, allowedClassifications, timeouts, cost, new Validation(0.70, 0.85));
     }
 
     public record Timeouts(Duration advisory) {
