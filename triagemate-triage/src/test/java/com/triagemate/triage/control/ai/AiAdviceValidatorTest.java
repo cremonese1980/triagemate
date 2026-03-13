@@ -91,6 +91,40 @@ class AiAdviceValidatorTest {
     }
 
     @Test
+    void emptyAllowlist_acceptsAnyClassification() {
+        AiAdvisoryProperties openPolicyProps = new AiAdvisoryProperties(
+                true, "test",
+                Set.of(), // empty allowlist — open policy mode
+                new AiAdvisoryProperties.Timeouts(Duration.ofSeconds(5)),
+                new AiAdvisoryProperties.Cost(0.05, 100.0),
+                new AiAdvisoryProperties.Validation(0.70, 0.85)
+        );
+        AiAdviceValidator openValidator = new AiAdviceValidator(openPolicyProps);
+
+        AiDecisionAdvice advice = createAdvice("COMPLETELY_UNKNOWN_CLASS", 0.90, true);
+        ValidatedAdvice result = openValidator.validate(deterministicResult, advice);
+
+        assertEquals(ValidatedAdvice.Status.ACCEPTED, result.status());
+    }
+
+    @Test
+    void advisory_whenBetweenThresholdsAndOverrideTrue() {
+        // confidence >= minSuggestion (0.70) but < minOverride (0.85), override requested
+        // should still be ADVISORY, not ACCEPTED — override requires >= 0.85
+        AiDecisionAdvice advice = createAdvice("DEVICE_ERROR", 0.80, true);
+        ValidatedAdvice result = validator.validate(deterministicResult, advice);
+        assertEquals(ValidatedAdvice.Status.ADVISORY, result.status());
+    }
+
+    @Test
+    void rejected_whenConfidenceJustBelowSuggestionThreshold() {
+        AiDecisionAdvice advice = createAdvice("DEVICE_ERROR", 0.6999, false);
+        ValidatedAdvice result = validator.validate(deterministicResult, advice);
+        assertEquals(ValidatedAdvice.Status.REJECTED, result.status());
+        assertTrue(result.rejectionReason().contains("Confidence too low"));
+    }
+
+    @Test
     void thresholds_areConfigurable() {
         AiAdvisoryProperties customThresholds = new AiAdvisoryProperties(
                 true,

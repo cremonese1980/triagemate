@@ -29,6 +29,10 @@ public class AiAdviceValidator {
 
         Set<String> allowed = properties.allowedClassifications();
         String suggestedClassification = advice.suggestedClassification();
+        // When allowedClassifications is empty (open policy mode), any non-null classification
+        // is accepted. In production, configure triagemate.ai.allowed-classifications to enforce
+        // a strict allowlist — the validator only rejects when the set is non-empty and the
+        // classification is not a member.
         if (suggestedClassification == null
                 || (!allowed.isEmpty() && !allowed.contains(suggestedClassification))) {
             return ValidatedAdvice.rejected(advice,

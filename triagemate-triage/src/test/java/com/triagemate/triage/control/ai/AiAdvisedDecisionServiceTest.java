@@ -162,6 +162,46 @@ class AiAdvisedDecisionServiceTest {
         assertEquals("NO_ADVICE", result.attributes().get("aiAdviceStatus"));
     }
 
+    @Test
+    void budgetExceeded_fallsBackToDeterministic() {
+        // Exhaust daily budget so the next call triggers BudgetExceededException
+        AiAdvisoryProperties tightBudgetProps = new AiAdvisoryProperties(
+                true, "test",
+                Set.of("DEVICE_ERROR", "NORMAL"),
+                new AiAdvisoryProperties.Timeouts(Duration.ofSeconds(5)),
+                new AiAdvisoryProperties.Cost(0.05, 0.01), // daily budget = $0.01
+                new AiAdvisoryProperties.Validation(0.70, 0.85)
+        );
+
+        AiCostTracker costTracker = new AiCostTracker(tightBudgetProps, meterRegistry);
+        costTracker.recordCost(0.02); // exceed the $0.01 daily budget
+
+        stubAdvisor.setAdvice(new AiDecisionAdvice(
+                "DEVICE_ERROR", 0.92, "Should not be used", true,
+                "test", "model", "v1", "1.0.0", "hash",
+                10, 20, 0.001, 50
+        ));
+
+        AiAdvisedDecisionService budgetService = new AiAdvisedDecisionService(
+                stubDelegate,
+                stubAdvisor,
+                new AiAdviceValidator(tightBudgetProps),
+                new StubAuditService(),
+                costTracker,
+                new AiMetrics(meterRegistry),
+                CircuitBreakerRegistry.of(CircuitBreakerConfig.ofDefaults()).circuitBreaker("budget"),
+                RetryRegistry.of(RetryConfig.custom().maxAttempts(1).build()).retry("budget"),
+                Executors.newSingleThreadExecutor(),
+                tightBudgetProps
+        );
+
+        DecisionResult result = budgetService.decide(createContext());
+
+        assertEquals(DecisionOutcome.ACCEPT, result.outcome());
+        assertEquals(false, result.attributes().get("aiAdvicePresent"));
+        assertEquals("NO_ADVICE", result.attributes().get("aiAdviceStatus"));
+    }
+
     private DecisionContext<?> createContext() {
         return DecisionContext.of(
                 "evt-123", "device.telemetry", 1,
