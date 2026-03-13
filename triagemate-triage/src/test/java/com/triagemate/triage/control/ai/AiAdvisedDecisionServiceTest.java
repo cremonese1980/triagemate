@@ -70,7 +70,11 @@ class AiAdvisedDecisionServiceTest {
 
         assertEquals(DecisionOutcome.ACCEPT, result.outcome());
         assertEquals(true, result.attributes().get("aiAdvicePresent"));
+        assertEquals(true, result.attributes().get("aiAdviceAccepted"));
         assertEquals("ACCEPTED", result.attributes().get("aiAdviceStatus"));
+        assertEquals(0.92, result.attributes().get("aiConfidence"));
+        assertEquals("v1", result.attributes().get("aiModelVersion"));
+        assertEquals("1.0.0", result.attributes().get("aiPromptVersion"));
     }
 
     @Test
@@ -95,6 +99,8 @@ class AiAdvisedDecisionServiceTest {
 
         assertEquals(DecisionOutcome.ACCEPT, result.outcome());
         assertEquals("REJECTED", result.attributes().get("aiAdviceStatus"));
+        assertEquals(false, result.attributes().get("aiAdviceAccepted"));
+        assertTrue(result.attributes().containsKey("aiAdviceRejectedReason"));
     }
 
     @Test
@@ -150,6 +156,7 @@ class AiAdvisedDecisionServiceTest {
 
         assertEquals(DecisionOutcome.ACCEPT, result.outcome());
         assertEquals(false, result.attributes().get("aiAdvicePresent"));
+        assertEquals(false, result.attributes().get("aiAdviceAccepted"));
         assertEquals("NO_ADVICE", result.attributes().get("aiAdviceStatus"));
     }
 

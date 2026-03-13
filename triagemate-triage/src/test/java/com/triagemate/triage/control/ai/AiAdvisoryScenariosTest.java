@@ -38,7 +38,7 @@ class AiAdvisoryScenariosTest {
                 0, 0, 0.0, 10
         );
 
-        ValidatedAdvice result = validator.validate(advice);
+        ValidatedAdvice result = validator.validate(deterministicResult(), advice);
 
         assertEquals(ValidatedAdvice.Status.ACCEPTED, result.status());
     }
@@ -58,7 +58,7 @@ class AiAdvisoryScenariosTest {
                 0, 0, 0.0, 10
         );
 
-        ValidatedAdvice result = validator.validate(advice);
+        ValidatedAdvice result = validator.validate(deterministicResult(), advice);
 
         assertEquals(ValidatedAdvice.Status.REJECTED, result.status());
     }
@@ -128,6 +128,17 @@ class AiAdvisoryScenariosTest {
 
         assertEquals("DEVICE_ERROR", parsed.suggestedClassification());
         assertEquals(0.88, parsed.confidence(), 0.001);
+    }
+
+
+    private DecisionResult deterministicResult() {
+        return DecisionResult.of(
+                DecisionOutcome.ACCEPT,
+                "deterministic",
+                Map.of("strategy", "rules-v1"),
+                ReasonCode.ACCEPTED_BY_DEFAULT,
+                "All policies passed"
+        );
     }
 
     private DecisionContext<?> testContext() {

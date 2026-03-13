@@ -12,7 +12,8 @@ public record AiAdvisoryProperties(
         String provider,
         Set<String> allowedClassifications,
         Timeouts timeouts,
-        Cost cost
+        Cost cost,
+        Validation validation
 ) {
     public AiAdvisoryProperties {
 
@@ -20,6 +21,17 @@ public record AiAdvisoryProperties(
         allowedClassifications = Objects.requireNonNullElse(allowedClassifications, Set.of());
         timeouts = Objects.requireNonNullElse(timeouts, new Timeouts(Duration.ofSeconds(5)));
         cost = Objects.requireNonNullElse(cost, new Cost(0.05, 100.00));
+        validation = Objects.requireNonNullElse(validation, new Validation(0.70, 0.85));
+    }
+
+    public AiAdvisoryProperties(
+            boolean enabled,
+            String provider,
+            Set<String> allowedClassifications,
+            Timeouts timeouts,
+            Cost cost
+    ) {
+        this(enabled, provider, allowedClassifications, timeouts, cost, new Validation(0.70, 0.85));
     }
 
     public record Timeouts(Duration advisory) {
@@ -29,5 +41,19 @@ public record AiAdvisoryProperties(
     }
 
     public record Cost(double maxPerDecisionUsd, double maxDailyUsd) {
+    }
+
+    public record Validation(double minConfidenceForSuggestion, double minConfidenceForOverride) {
+        public Validation {
+            if (minConfidenceForSuggestion < 0.0 || minConfidenceForSuggestion > 1.0) {
+                throw new IllegalArgumentException("minConfidenceForSuggestion must be in [0,1]");
+            }
+            if (minConfidenceForOverride < 0.0 || minConfidenceForOverride > 1.0) {
+                throw new IllegalArgumentException("minConfidenceForOverride must be in [0,1]");
+            }
+            if (minConfidenceForOverride < minConfidenceForSuggestion) {
+                throw new IllegalArgumentException("minConfidenceForOverride must be >= minConfidenceForSuggestion");
+            }
+        }
     }
 }

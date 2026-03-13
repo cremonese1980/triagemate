@@ -19,6 +19,9 @@ triagemate:
     cost:
       max-per-decision-usd: 0.05
       max-daily-usd: 100.00
+    validation:
+      min-confidence-for-suggestion: 0.70
+      min-confidence-for-override: 0.85
 
 logging:
   level:

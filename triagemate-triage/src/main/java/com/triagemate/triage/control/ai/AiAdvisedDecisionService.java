@@ -72,7 +72,7 @@ public class AiAdvisedDecisionService implements DecisionService {
         AiDecisionAdvice advice = getAiAdvice(context, deterministicResult);
 
         // Step 3: Validate AI advice against policy
-        ValidatedAdvice validated = adviceValidator.validate(advice);
+        ValidatedAdvice validated = adviceValidator.validate(deterministicResult, advice);
 
         // Step 4: Audit
         if (advice.isPresent()) {
@@ -158,15 +158,17 @@ public class AiAdvisedDecisionService implements DecisionService {
         Map<String, Object> enrichedAttributes = new HashMap<>(deterministicResult.attributes());
 
         enrichedAttributes.put("aiAdvicePresent", validated.advice().isPresent());
+        enrichedAttributes.put("aiAdviceAccepted", validated.isAccepted());
         enrichedAttributes.put("aiAdviceStatus", validated.status().name());
+
+        if (validated.rejectionReason() != null) {
+            enrichedAttributes.put("aiAdviceRejectedReason", validated.rejectionReason());
+        }
 
         if (validated.advice().isPresent()) {
             enrichedAttributes.put("aiConfidence", validated.advice().confidence());
+            enrichedAttributes.put("aiModelVersion", validated.advice().modelVersion());
             enrichedAttributes.put("aiPromptVersion", validated.advice().promptVersion());
-
-            if (validated.rejectionReason() != null) {
-                enrichedAttributes.put("aiAdviceRejectedReason", validated.rejectionReason());
-            }
         }
 
         // For now, AI accepted advice is only enrichment — not override.
