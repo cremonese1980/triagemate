@@ -36,7 +36,16 @@ public class AiAuditService {
     }
 
     public void recordError(DecisionContext<?> context, String errorType, String errorMessage) {
-        String decisionId = resolveDecisionId(context, null);
+        recordError(context, null, errorType, errorMessage);
+    }
+
+    public void recordError(
+            DecisionContext<?> context,
+            DecisionResult deterministicResult,
+            String errorType,
+            String errorMessage
+    ) {
+        String decisionId = resolveDecisionId(context, deterministicResult);
         AiAuditRecord record = AiAuditRecord.fromError(
                 decisionId,
                 context.eventId(),

@@ -471,6 +471,11 @@ class AiVerificationScenariosTest {
         }
 
         @Override
+        public void recordError(DecisionContext<?> context, DecisionResult deterministicResult, String errorType, String errorMessage) {
+            recordError(context, errorType, errorMessage);
+        }
+
+        @Override
         public void recordError(DecisionContext<?> context, String errorType, String errorMessage) {
             errorCalled = true;
             lastErrorType = errorType;
