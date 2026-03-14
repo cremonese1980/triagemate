@@ -52,6 +52,8 @@ public class AiAdvisoryConfig {
             @Qualifier("aiExecutor") Executor aiExecutor,
             AiAdvisoryProperties properties
     ) {
+        metrics.registerCircuitBreakerStateGauge(aiCircuitBreaker, properties.provider());
+
         return new AiAdvisedDecisionService(
                 decisionService, aiDecisionAdvisor, adviceValidator,
                 auditService, costTracker, metrics,
