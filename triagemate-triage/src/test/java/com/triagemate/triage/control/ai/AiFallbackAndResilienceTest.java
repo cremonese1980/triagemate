@@ -698,11 +698,13 @@ class AiFallbackAndResilienceTest {
 
         @Test
         void costAccumulation_acrossMultipleDecisions() {
+            // checkBudget uses maxPerDecisionUsd ($0.05) as estimated cost,
+            // so daily check is: accumulated + $0.05 > maxDailyUsd
             AiAdvisoryProperties costProps = new AiAdvisoryProperties(
                     true, "test",
                     Set.of("DEVICE_ERROR", "NORMAL"),
                     new AiAdvisoryProperties.Timeouts(Duration.ofSeconds(5)),
-                    new AiAdvisoryProperties.Cost(0.05, 0.10),
+                    new AiAdvisoryProperties.Cost(0.05, 0.12),
                     new AiAdvisoryProperties.Validation(0.70, 0.85)
             );
 
@@ -712,7 +714,7 @@ class AiFallbackAndResilienceTest {
             advisor.setAdvice(new AiDecisionAdvice(
                     "DEVICE_ERROR", 0.92, "match", true,
                     "test", "model", "v1", "1.0.0", "hash",
-                    10, 20, 0.03, 50 // $0.03 per call
+                    10, 20, 0.03, 50 // $0.03 actual per call
             ));
 
             CircuitBreaker cb = CircuitBreakerRegistry.of(CircuitBreakerConfig.ofDefaults())
@@ -728,34 +730,36 @@ class AiFallbackAndResilienceTest {
                     cb, noRetry, Executors.newSingleThreadExecutor(), costProps
             );
 
-            // First call: $0.03 → should succeed (daily budget $0.10)
+            // Call 1: budget check → 0.00 + 0.05 = 0.05 < 0.12 → pass, actual cost $0.03
             DecisionResult r1 = service.decide(createContext());
             assertEquals(true, r1.attributes().get("aiAdvicePresent"));
             assertEquals(0.03, costTracker.getDailyCostUsd(), 0.001);
 
-            // Second call: $0.03 → cumulative $0.06 → should succeed
+            // Call 2: budget check → 0.03 + 0.05 = 0.08 < 0.12 → pass, daily = $0.06
             DecisionResult r2 = service.decide(createContext());
             assertEquals(true, r2.attributes().get("aiAdvicePresent"));
             assertEquals(0.06, costTracker.getDailyCostUsd(), 0.001);
 
-            // Third call: $0.03 → cumulative $0.09 → should succeed
+            // Call 3: budget check → 0.06 + 0.05 = 0.11 < 0.12 → pass, daily = $0.09
             DecisionResult r3 = service.decide(createContext());
             assertEquals(true, r3.attributes().get("aiAdvicePresent"));
             assertEquals(0.09, costTracker.getDailyCostUsd(), 0.001);
 
-            // Fourth call: would push to $0.12 > $0.10 → budget exceeded → fallback
+            // Call 4: budget check → 0.09 + 0.05 = 0.14 > 0.12 → budget exceeded → fallback
             DecisionResult r4 = service.decide(createContext());
             assertEquals(false, r4.attributes().get("aiAdvicePresent"),
-                    "Fourth call should fall back because cumulative cost would exceed daily budget");
+                    "Fourth call should fall back because estimated cost would exceed daily budget");
         }
 
         @Test
         void dailyCostReset_allowsNewCallsAfterReset() {
+            // checkBudget uses maxPerDecisionUsd ($0.05) as estimated cost
+            // so daily check is: accumulated + $0.05 > maxDailyUsd ($0.07)
             AiAdvisoryProperties costProps = new AiAdvisoryProperties(
                     true, "test",
                     Set.of("DEVICE_ERROR", "NORMAL"),
                     new AiAdvisoryProperties.Timeouts(Duration.ofSeconds(5)),
-                    new AiAdvisoryProperties.Cost(0.05, 0.04),
+                    new AiAdvisoryProperties.Cost(0.05, 0.07),
                     new AiAdvisoryProperties.Validation(0.70, 0.85)
             );
 
@@ -765,7 +769,7 @@ class AiFallbackAndResilienceTest {
             advisor.setAdvice(new AiDecisionAdvice(
                     "DEVICE_ERROR", 0.92, "match", true,
                     "test", "model", "v1", "1.0.0", "hash",
-                    10, 20, 0.03, 50
+                    10, 20, 0.03, 50 // $0.03 actual per call
             ));
 
             CircuitBreaker cb = CircuitBreakerRegistry.of(CircuitBreakerConfig.ofDefaults())
@@ -781,11 +785,11 @@ class AiFallbackAndResilienceTest {
                     cb, noRetry, Executors.newSingleThreadExecutor(), costProps
             );
 
-            // First call: $0.03 → succeeds
+            // Call 1: budget check → 0.00 + 0.05 = 0.05 < 0.07 → pass, daily = $0.03
             DecisionResult r1 = service.decide(createContext());
             assertEquals(true, r1.attributes().get("aiAdvicePresent"));
 
-            // Second call: would push to $0.06 > $0.04 → budget exceeded
+            // Call 2: budget check → 0.03 + 0.05 = 0.08 > 0.07 → budget exceeded
             DecisionResult r2 = service.decide(createContext());
             assertEquals(false, r2.attributes().get("aiAdvicePresent"));
 
@@ -793,7 +797,7 @@ class AiFallbackAndResilienceTest {
             costTracker.resetDailyCost();
             assertEquals(0.0, costTracker.getDailyCostUsd(), 0.001);
 
-            // Third call: budget is fresh, $0.03 < $0.04 → should succeed again
+            // Call 3: budget check → 0.00 + 0.05 = 0.05 < 0.07 → pass again
             DecisionResult r3 = service.decide(createContext());
             assertEquals(true, r3.attributes().get("aiAdvicePresent"),
                     "After daily cost reset, AI calls should be permitted again");
