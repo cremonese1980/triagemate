@@ -121,19 +121,19 @@ public class AiAdvisedDecisionService implements DecisionService {
         } catch (RejectedExecutionException e) {
             log.warn("AI executor queue full, falling back to deterministic decision");
             metrics.recordFallback("queue_full");
-            auditService.recordError(context, "QUEUE_FULL", e.getMessage());
+            auditService.recordError(context, deterministicResult, "QUEUE_FULL", e.getMessage());
             return AiDecisionAdvice.NONE;
 
         } catch (CallNotPermittedException e) {
             log.warn("AI circuit breaker open, falling back to deterministic decision");
             metrics.recordFallback("circuit_breaker_open");
-            auditService.recordError(context, "CIRCUIT_BREAKER_OPEN", e.getMessage());
+            auditService.recordError(context, deterministicResult, "CIRCUIT_BREAKER_OPEN", e.getMessage());
             return AiDecisionAdvice.NONE;
 
         } catch (BudgetExceededException e) {
             log.warn("AI budget exceeded: {}", e.getMessage());
             metrics.recordFallback("budget_exceeded");
-            auditService.recordError(context, "BUDGET_EXCEEDED", e.getMessage());
+            auditService.recordError(context, deterministicResult, "BUDGET_EXCEEDED", e.getMessage());
             return AiDecisionAdvice.NONE;
 
         } catch (Exception e) {
@@ -150,7 +150,7 @@ public class AiAdvisedDecisionService implements DecisionService {
             if (cause instanceof CallNotPermittedException) {
                 log.warn("AI circuit breaker open, falling back to deterministic decision");
                 metrics.recordFallback("circuit_breaker_open");
-                auditService.recordError(context, "CIRCUIT_BREAKER_OPEN", cause.getMessage());
+                auditService.recordError(context, deterministicResult, "CIRCUIT_BREAKER_OPEN", cause.getMessage());
                 return AiDecisionAdvice.NONE;
             }
 
@@ -158,7 +158,7 @@ public class AiAdvisedDecisionService implements DecisionService {
             log.warn("AI advisory failed ({}): {}", errorType, cause.getMessage());
             metrics.recordFallback(errorType.toLowerCase());
             metrics.recordCall(properties.provider(), "error", 0);
-            auditService.recordError(context, errorType, cause.getMessage());
+            auditService.recordError(context, deterministicResult, errorType, cause.getMessage());
             return AiDecisionAdvice.NONE;
         }
     }
