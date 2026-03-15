@@ -24,7 +24,7 @@ public class AiCostTracker {
                 .register(meterRegistry);
     }
 
-    public void checkBudget(double estimatedCostUsd) {
+    public synchronized void checkBudget(double estimatedCostUsd) {
         if (properties.cost() == null) return;
 
         if (estimatedCostUsd > properties.cost().maxPerDecisionUsd()) {
@@ -43,7 +43,7 @@ public class AiCostTracker {
         }
     }
 
-    public void recordCost(double costUsd) {
+    public synchronized void recordCost(double costUsd) {
         dailyCostUsd.updateAndGet(current -> current + costUsd);
     }
 
@@ -51,7 +51,7 @@ public class AiCostTracker {
         return dailyCostUsd.get();
     }
 
-    public void resetDailyCost() {
+    public synchronized void resetDailyCost() {
         dailyCostUsd.set(0.0);
     }
 }

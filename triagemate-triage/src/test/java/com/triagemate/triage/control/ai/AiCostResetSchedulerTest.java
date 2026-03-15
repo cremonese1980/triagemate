@@ -13,7 +13,7 @@ class AiCostResetSchedulerTest {
     @Test
     void resetDailyCost_clearsDailyAccumulation() {
         AiAdvisoryProperties props = new AiAdvisoryProperties(
-                true, "test", Set.of(),
+                true, "test", null, null, Set.of(),
                 new AiAdvisoryProperties.Timeouts(Duration.ofSeconds(5)),
                 new AiAdvisoryProperties.Cost(0.05, 100.0),
                 new AiAdvisoryProperties.Validation(0.70, 0.85)
@@ -33,7 +33,7 @@ class AiCostResetSchedulerTest {
     @Test
     void resetDailyCost_allowsBudgetChecksAfterReset() {
         AiAdvisoryProperties props = new AiAdvisoryProperties(
-                true, "test", Set.of(),
+                true, "test", null, null, Set.of(),
                 new AiAdvisoryProperties.Timeouts(Duration.ofSeconds(5)),
                 new AiAdvisoryProperties.Cost(0.05, 10.0),
                 new AiAdvisoryProperties.Validation(0.70, 0.85)

@@ -25,6 +25,6 @@ public record AiDecisionAdvice(
     );
 
     public boolean isPresent() {
-        return this != NONE;
+        return suggestedClassification != null;
     }
 }

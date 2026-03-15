@@ -21,7 +21,7 @@ class AiAdviceValidatorTest {
     @BeforeEach
     void setUp() {
         AiAdvisoryProperties props = new AiAdvisoryProperties(
-                true, "test",
+                true, "test", null, null,
                 Set.of("DEVICE_ERROR", "NETWORK_ISSUE", "NORMAL"),
                 new AiAdvisoryProperties.Timeouts(Duration.ofSeconds(5)),
                 new AiAdvisoryProperties.Cost(0.05, 100.0),
@@ -54,11 +54,12 @@ class AiAdviceValidatorTest {
     }
 
     @Test
-    void rejected_whenClassificationIsNull() {
+    void noAdvice_whenClassificationIsNull() {
+        // With semantic isPresent() (suggestedClassification != null),
+        // null classification means "not present" — treated as NO_ADVICE
         AiDecisionAdvice advice = createAdvice(null, 0.90, true);
         ValidatedAdvice result = validator.validate(deterministicResult, advice);
-        assertEquals(ValidatedAdvice.Status.REJECTED, result.status());
-        assertTrue(result.rejectionReason().contains("Invalid classification"));
+        assertEquals(ValidatedAdvice.Status.NO_ADVICE, result.status());
     }
 
     @Test
@@ -93,7 +94,7 @@ class AiAdviceValidatorTest {
     @Test
     void emptyAllowlist_acceptsAnyClassification() {
         AiAdvisoryProperties openPolicyProps = new AiAdvisoryProperties(
-                true, "test",
+                true, "test", null, null,
                 Set.of(), // empty allowlist — open policy mode
                 new AiAdvisoryProperties.Timeouts(Duration.ofSeconds(5)),
                 new AiAdvisoryProperties.Cost(0.05, 100.0),
@@ -128,7 +129,7 @@ class AiAdviceValidatorTest {
     void thresholds_areConfigurable() {
         AiAdvisoryProperties customThresholds = new AiAdvisoryProperties(
                 true,
-                "test",
+                "test", null, null,
                 Set.of("DEVICE_ERROR"),
                 new AiAdvisoryProperties.Timeouts(Duration.ofSeconds(5)),
                 new AiAdvisoryProperties.Cost(0.05, 100.0),

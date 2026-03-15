@@ -52,7 +52,7 @@ class AiFallbackAndResilienceTest {
     void setUp() {
         meterRegistry = new SimpleMeterRegistry();
         properties = new AiAdvisoryProperties(
-                true, "test",
+                true, "test", null, null,
                 Set.of("DEVICE_ERROR", "NORMAL"),
                 new AiAdvisoryProperties.Timeouts(Duration.ofSeconds(5)),
                 new AiAdvisoryProperties.Cost(0.05, 100.0),
@@ -455,7 +455,7 @@ class AiFallbackAndResilienceTest {
         @Test
         void timeoutFallback_tracksMetric() {
             AiAdvisoryProperties shortTimeout = new AiAdvisoryProperties(
-                    true, "test",
+                    true, "test", null, null,
                     Set.of("DEVICE_ERROR", "NORMAL"),
                     new AiAdvisoryProperties.Timeouts(Duration.ofMillis(20)),
                     new AiAdvisoryProperties.Cost(0.05, 100.0),
@@ -516,7 +516,7 @@ class AiFallbackAndResilienceTest {
         @Test
         void budgetExceededFallback_tracksMetric() {
             AiAdvisoryProperties tightBudget = new AiAdvisoryProperties(
-                    true, "test",
+                    true, "test", null, null,
                     Set.of("DEVICE_ERROR", "NORMAL"),
                     new AiAdvisoryProperties.Timeouts(Duration.ofSeconds(5)),
                     new AiAdvisoryProperties.Cost(0.05, 0.01),
@@ -579,7 +579,7 @@ class AiFallbackAndResilienceTest {
             };
 
             AiAdvisoryProperties shortTimeout = new AiAdvisoryProperties(
-                    true, "test",
+                    true, "test", null, null,
                     Set.of("DEVICE_ERROR", "NORMAL"),
                     new AiAdvisoryProperties.Timeouts(Duration.ofMillis(20)),
                     new AiAdvisoryProperties.Cost(0.05, 100.0),
@@ -701,7 +701,7 @@ class AiFallbackAndResilienceTest {
             // checkBudget uses maxPerDecisionUsd ($0.05) as estimated cost,
             // so daily check is: accumulated + $0.05 > maxDailyUsd
             AiAdvisoryProperties costProps = new AiAdvisoryProperties(
-                    true, "test",
+                    true, "test", null, null,
                     Set.of("DEVICE_ERROR", "NORMAL"),
                     new AiAdvisoryProperties.Timeouts(Duration.ofSeconds(5)),
                     new AiAdvisoryProperties.Cost(0.05, 0.12),
@@ -756,7 +756,7 @@ class AiFallbackAndResilienceTest {
             // checkBudget uses maxPerDecisionUsd ($0.05) as estimated cost
             // so daily check is: accumulated + $0.05 > maxDailyUsd ($0.07)
             AiAdvisoryProperties costProps = new AiAdvisoryProperties(
-                    true, "test",
+                    true, "test", null, null,
                     Set.of("DEVICE_ERROR", "NORMAL"),
                     new AiAdvisoryProperties.Timeouts(Duration.ofSeconds(5)),
                     new AiAdvisoryProperties.Cost(0.05, 0.07),
@@ -801,6 +801,69 @@ class AiFallbackAndResilienceTest {
             DecisionResult r3 = service.decide(createContext());
             assertEquals(true, r3.attributes().get("aiAdvicePresent"),
                     "After daily cost reset, AI calls should be permitted again");
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // Group I: Cost Tracker Concurrency Safety
+    // ──────────────────────────────────────────────────────────────
+
+    @Nested
+    class CostTrackerConcurrencyTests {
+
+        @Test
+        void concurrentCheckAndRecord_neverExceedsBudget() throws Exception {
+            // Budget: $0.05 per decision, $0.50 daily
+            // Each call costs $0.05, so max 10 calls allowed
+            AiAdvisoryProperties costProps = new AiAdvisoryProperties(
+                    true, "test", null, null,
+                    Set.of("DEVICE_ERROR", "NORMAL"),
+                    new AiAdvisoryProperties.Timeouts(Duration.ofSeconds(5)),
+                    new AiAdvisoryProperties.Cost(0.05, 0.50),
+                    new AiAdvisoryProperties.Validation(0.70, 0.85)
+            );
+
+            AiCostTracker costTracker = new AiCostTracker(costProps, meterRegistry);
+
+            int threadCount = 20;
+            ExecutorService pool = Executors.newFixedThreadPool(threadCount);
+            CountDownLatch startGate = new CountDownLatch(1);
+            CountDownLatch doneLatch = new CountDownLatch(threadCount);
+            AtomicInteger successCount = new AtomicInteger(0);
+            AtomicInteger budgetExceededCount = new AtomicInteger(0);
+
+            for (int i = 0; i < threadCount; i++) {
+                pool.submit(() -> {
+                    try {
+                        startGate.await();
+                        costTracker.checkBudget(0.05);
+                        costTracker.recordCost(0.05);
+                        successCount.incrementAndGet();
+                    } catch (BudgetExceededException e) {
+                        budgetExceededCount.incrementAndGet();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    } finally {
+                        doneLatch.countDown();
+                    }
+                });
+            }
+
+            startGate.countDown();
+            assertTrue(doneLatch.await(10, TimeUnit.SECONDS), "All threads should complete");
+            pool.shutdownNow();
+
+            assertEquals(threadCount, successCount.get() + budgetExceededCount.get(),
+                    "Every thread should either succeed or get BudgetExceededException");
+
+            // With $0.50 budget and $0.05 per call, max 10 successful calls.
+            // The daily cost should never exceed the budget.
+            assertTrue(costTracker.getDailyCostUsd() <= 0.50 + 0.001,
+                    "Daily cost (" + costTracker.getDailyCostUsd() + ") must not exceed budget ($0.50)");
+            assertTrue(successCount.get() <= 10,
+                    "At most 10 calls should succeed with $0.50 budget at $0.05 each, got " + successCount.get());
+            assertTrue(budgetExceededCount.get() >= 10,
+                    "At least 10 of 20 threads should be rejected, got " + budgetExceededCount.get());
         }
     }
 

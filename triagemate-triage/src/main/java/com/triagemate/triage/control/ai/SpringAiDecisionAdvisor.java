@@ -5,6 +5,7 @@ import com.triagemate.triage.control.decision.DecisionResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.web.client.HttpStatusCodeException;
 
 import java.util.Map;
@@ -46,13 +47,15 @@ public class SpringAiDecisionAdvisor implements AiDecisionAdvisor {
             log.info("Deterministic result: {}", deterministicResult.toString());
             String prompt = buildPrompt(context, deterministicResult);
 
-            String rawResponse = chatClient.prompt()
+            ChatResponse chatResponse = chatClient.prompt()
                     .user(prompt)
                     .call()
-                    .content();
+                    .chatResponse();
+
+            String rawResponse = chatResponse.getResult().getOutput().getText();
 
             log.info("AI raw response: {}", rawResponse);
-            
+
             long latencyMs = System.currentTimeMillis() - start;
 
             Set<String> allowed = properties.allowedClassifications();
@@ -60,6 +63,14 @@ public class SpringAiDecisionAdvisor implements AiDecisionAdvisor {
 
             log.info("AI parsed: classification={}, confidence={}", parsed.suggestedClassification(), parsed.confidence());
 
+            int inputTokens = 0;
+            int outputTokens = 0;
+            if (chatResponse.getMetadata() != null && chatResponse.getMetadata().getUsage() != null) {
+                var usage = chatResponse.getMetadata().getUsage();
+                inputTokens = (int) usage.getPromptTokens();
+                outputTokens = (int) usage.getCompletionTokens();
+            }
+            double costUsd = estimateCost(inputTokens, outputTokens);
 
             return new AiDecisionAdvice(
                     parsed.suggestedClassification(),
@@ -67,12 +78,12 @@ public class SpringAiDecisionAdvisor implements AiDecisionAdvisor {
                     parsed.reasoning(),
                     parsed.recommendsOverride(),
                     properties.provider(),
-                    null, // model extracted at config level
-                    null, // modelVersion
+                    properties.model(),
+                    properties.modelVersion(),
                     promptTemplateService.getPromptVersion(),
                     promptTemplateService.getPromptHash(),
-                    0, 0, // token counts — not always available from all providers
-                    0.0,
+                    inputTokens, outputTokens,
+                    costUsd,
                     latencyMs
             );
         } catch (AiAdvisoryException e) {
@@ -100,6 +111,14 @@ public class SpringAiDecisionAdvisor implements AiDecisionAdvisor {
             cause = cause.getCause();
         }
         return new TransientAiException("AI provider error: " + e.getMessage(), e);
+    }
+
+    private double estimateCost(int inputTokens, int outputTokens) {
+        // Conservative cost estimation per 1M tokens (Anthropic Claude Sonnet pricing)
+        // Input: $3/1M tokens, Output: $15/1M tokens
+        double inputCost = (inputTokens / 1_000_000.0) * 3.0;
+        double outputCost = (outputTokens / 1_000_000.0) * 15.0;
+        return inputCost + outputCost;
     }
 
     private String buildPrompt(DecisionContext<?> context, DecisionResult deterministicResult) {

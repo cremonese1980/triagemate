@@ -68,10 +68,12 @@ class AiAdvisoryPropertiesTest {
     @Test
     void defaults_areAppliedWhenNullProvided() {
         AiAdvisoryProperties props = new AiAdvisoryProperties(
-                false, null, null, null, null, null
+                false, null, null, null, null, null, null, null
         );
 
         assert props.provider().equals("anthropic");
+        assert props.model().equals("unknown");
+        assert props.modelVersion().equals("unknown");
         assert props.allowedClassifications().isEmpty();
         assert props.timeouts().advisory().equals(Duration.ofSeconds(5));
         assert props.cost().maxPerDecisionUsd() == 0.05;

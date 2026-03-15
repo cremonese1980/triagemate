@@ -107,9 +107,10 @@ public class AiAdvisedDecisionService implements DecisionService {
             future = CompletableFuture.supplyAsync(
                     () -> {
                         aiThread.set(Thread.currentThread());
-                        // Apply circuit breaker + retry around the actual AI call
-                        return Retry.decorateSupplier(retry,
-                                CircuitBreaker.decorateSupplier(circuitBreaker,
+                        // CB wraps retry: CB sees 1 failure per invocation (after retries exhausted),
+                        // not N failures (one per retry attempt). This prevents premature CB opening.
+                        return CircuitBreaker.decorateSupplier(circuitBreaker,
+                                Retry.decorateSupplier(retry,
                                         () -> aiAdvisor.advise(context, deterministicResult))
                         ).get();
                     },
@@ -180,8 +181,18 @@ public class AiAdvisedDecisionService implements DecisionService {
             enrichedAttributes.put("aiPromptVersion", validated.advice().promptVersion());
         }
 
-        // For now, AI accepted advice is only enrichment — not override.
-        // Override behavior can be enabled in a future phase by using the AI's suggested classification.
+        if (validated.isAccepted()) {
+            enrichedAttributes.put("aiOverrideApplied", true);
+            enrichedAttributes.put("originalOutcome", deterministicResult.outcome().name());
+            return DecisionResult.of(
+                    deterministicResult.outcome(),
+                    validated.advice().suggestedClassification(),
+                    enrichedAttributes,
+                    deterministicResult.reasonCode(),
+                    "AI override: " + validated.advice().reasoning()
+            );
+        }
+
         return DecisionResult.of(
                 deterministicResult.outcome(),
                 deterministicResult.reason(),

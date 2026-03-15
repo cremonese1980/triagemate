@@ -33,7 +33,7 @@ class AiAdvisedDecisionServiceTest {
     void setUp() {
         meterRegistry = new SimpleMeterRegistry();
         properties = new AiAdvisoryProperties(
-                true, "test",
+                true, "test", null, null,
                 Set.of("DEVICE_ERROR", "NORMAL"),
                 new AiAdvisoryProperties.Timeouts(Duration.ofSeconds(5)),
                 new AiAdvisoryProperties.Cost(0.05, 100.0),
@@ -62,7 +62,7 @@ class AiAdvisedDecisionServiceTest {
     }
 
     @Test
-    void happyPath_aiAdviceEnrichesDecision() {
+    void happyPath_aiAdviceEnrichesDecisionWithOverride() {
         stubAdvisor.setAdvice(new AiDecisionAdvice(
                 "DEVICE_ERROR", 0.92, "High confidence match", true,
                 "test", "model", "v1", "1.0.0", "hash",
@@ -78,6 +78,12 @@ class AiAdvisedDecisionServiceTest {
         assertEquals(0.92, result.attributes().get("aiConfidence"));
         assertEquals("v1", result.attributes().get("aiModelVersion"));
         assertEquals("1.0.0", result.attributes().get("aiPromptVersion"));
+
+        // Override applied: reason now reflects AI classification
+        assertEquals(true, result.attributes().get("aiOverrideApplied"));
+        assertEquals("ACCEPT", result.attributes().get("originalOutcome"));
+        assertEquals("DEVICE_ERROR", result.reason());
+        assertEquals("AI override: High confidence match", result.humanReadableReason());
     }
 
     @Test
@@ -119,7 +125,7 @@ class AiAdvisedDecisionServiceTest {
     @Test
     void timeout_fallsBackToDeterministic() {
         AiAdvisoryProperties timeoutProperties = new AiAdvisoryProperties(
-                true, "test",
+                true, "test", null, null,
                 Set.of("DEVICE_ERROR", "NORMAL"),
                 new AiAdvisoryProperties.Timeouts(Duration.ofMillis(20)),
                 new AiAdvisoryProperties.Cost(0.05, 100.0),
@@ -168,7 +174,7 @@ class AiAdvisedDecisionServiceTest {
     void budgetExceeded_fallsBackToDeterministic() {
         // Exhaust daily budget so the next call triggers BudgetExceededException
         AiAdvisoryProperties tightBudgetProps = new AiAdvisoryProperties(
-                true, "test",
+                true, "test", null, null,
                 Set.of("DEVICE_ERROR", "NORMAL"),
                 new AiAdvisoryProperties.Timeouts(Duration.ofSeconds(5)),
                 new AiAdvisoryProperties.Cost(0.05, 0.01), // daily budget = $0.01

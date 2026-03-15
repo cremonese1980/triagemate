@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class AiHealthIndicatorTest {
 
     private final AiAdvisoryProperties properties = new AiAdvisoryProperties(
-            true, "anthropic",
+            true, "anthropic", null, null,
             Set.of("DEVICE_ERROR", "NORMAL"),
             new AiAdvisoryProperties.Timeouts(Duration.ofSeconds(5)),
             new AiAdvisoryProperties.Cost(0.05, 100.0),

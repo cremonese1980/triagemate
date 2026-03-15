@@ -38,7 +38,7 @@ class AiVerificationScenariosTest {
     void setUp() {
         meterRegistry = new SimpleMeterRegistry();
         properties = new AiAdvisoryProperties(
-                true, "test",
+                true, "test", null, null,
                 Set.of("DEVICE_ERROR", "NORMAL"),
                 new AiAdvisoryProperties.Timeouts(Duration.ofSeconds(5)),
                 new AiAdvisoryProperties.Cost(0.05, 100.0),
@@ -77,10 +77,14 @@ class AiVerificationScenariosTest {
             assertEquals(true, result.attributes().get("aiAdviceAccepted"));
             assertEquals("ACCEPTED", result.attributes().get("aiAdviceStatus"));
 
-            // Step 5: Final decision includes AI metadata
+            // Step 5: Final decision includes AI metadata and override
             assertEquals(0.90, result.attributes().get("aiConfidence"));
             assertEquals("sonnet-4", result.attributes().get("aiModelVersion"));
             assertEquals("1.0.1", result.attributes().get("aiPromptVersion"));
+            assertEquals(true, result.attributes().get("aiOverrideApplied"));
+            assertEquals("ACCEPT", result.attributes().get("originalOutcome"));
+            assertEquals("DEVICE_ERROR", result.reason());
+            assertEquals("AI override: High confidence match", result.humanReadableReason());
 
             // Step 6: Audit trail records full interaction
             assertTrue(auditService.recordCalled, "Audit service record() should be called");
@@ -108,7 +112,7 @@ class AiVerificationScenariosTest {
         @Test
         void timeout_fallsBackAndRecordsAuditAndMetrics() {
             AiAdvisoryProperties shortTimeout = new AiAdvisoryProperties(
-                    true, "test",
+                    true, "test", null, null,
                     Set.of("DEVICE_ERROR", "NORMAL"),
                     new AiAdvisoryProperties.Timeouts(Duration.ofMillis(20)),
                     new AiAdvisoryProperties.Cost(0.05, 100.0),
@@ -292,7 +296,7 @@ class AiVerificationScenariosTest {
         void budgetExceeded_fallbackAndMetrics() {
             // Step 1: daily budget = $0.01
             AiAdvisoryProperties tightBudget = new AiAdvisoryProperties(
-                    true, "test",
+                    true, "test", null, null,
                     Set.of("DEVICE_ERROR", "NORMAL"),
                     new AiAdvisoryProperties.Timeouts(Duration.ofSeconds(5)),
                     new AiAdvisoryProperties.Cost(0.05, 0.01),

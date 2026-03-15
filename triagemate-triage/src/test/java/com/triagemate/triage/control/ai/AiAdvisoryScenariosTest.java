@@ -27,7 +27,7 @@ class AiAdvisoryScenariosTest {
     void allowlistStrict_acceptsAdviceWhenClassificationIsAllowed() {
         AiAdviceValidator validator = new AiAdviceValidator(new AiAdvisoryProperties(
                 true,
-                "test",
+                "test", null, null,
                 Set.of("DEVICE_ERROR", "NORMAL"),
                 new AiAdvisoryProperties.Timeouts(Duration.ofSeconds(5)),
                 new AiAdvisoryProperties.Cost(0.05, 100.0),
@@ -48,7 +48,7 @@ class AiAdvisoryScenariosTest {
     @Test
     void allowlistStrict_rejectsAdviceWhenClassificationIsNotAllowed() {
         AiAdviceValidator validator = new AiAdviceValidator(new AiAdvisoryProperties(
-                true, "test",
+                true, "test", null, null,
                 Set.of("DEVICE_ERROR", "NORMAL"),
                 new AiAdvisoryProperties.Timeouts(Duration.ofSeconds(5)),
                 new AiAdvisoryProperties.Cost(0.05, 100.0),
@@ -69,7 +69,7 @@ class AiAdvisoryScenariosTest {
     @Test
     void timeoutFallback_returnsDeterministicResultWithoutAiAdvice() {
         AiAdvisoryProperties timeoutProperties = new AiAdvisoryProperties(
-                true, "test",
+                true, "test", null, null,
                 Set.of("DEVICE_ERROR", "NORMAL"),
                 new AiAdvisoryProperties.Timeouts(Duration.ofMillis(20)),
                 new AiAdvisoryProperties.Cost(0.05, 100.0),

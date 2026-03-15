@@ -11,6 +11,8 @@ import java.util.Set;
 public record AiAdvisoryProperties(
         boolean enabled,
         String provider,
+        String model,
+        String modelVersion,
         Set<String> allowedClassifications,
         Timeouts timeouts,
         Cost cost,
@@ -19,6 +21,8 @@ public record AiAdvisoryProperties(
     public AiAdvisoryProperties {
 
         provider = Objects.requireNonNullElse(provider, "anthropic");
+        model = Objects.requireNonNullElse(model, "unknown");
+        modelVersion = Objects.requireNonNullElse(modelVersion, "unknown");
         allowedClassifications = Objects.requireNonNullElse(allowedClassifications, Set.of());
         timeouts = Objects.requireNonNullElse(timeouts, new Timeouts(Duration.ofSeconds(5)));
         cost = Objects.requireNonNullElse(cost, new Cost(0.05, 100.00));
