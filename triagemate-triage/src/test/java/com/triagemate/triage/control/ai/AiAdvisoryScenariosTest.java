@@ -97,7 +97,7 @@ class AiAdvisoryScenariosTest {
                     );
                 },
                 new AiAdviceValidator(timeoutProperties),
-                new NoopAuditService(),
+                new TestAiAuditService(),
                 new AiCostTracker(timeoutProperties, new SimpleMeterRegistry()),
                 new AiMetrics(new SimpleMeterRegistry()),
                 CircuitBreakerRegistry.of(CircuitBreakerConfig.ofDefaults()).circuitBreaker("timeout-scenario"),
@@ -156,23 +156,4 @@ class AiAdvisoryScenariosTest {
         );
     }
 
-    static class NoopAuditService extends AiAuditService {
-        NoopAuditService() {
-            super(record -> {});
-        }
-
-        @Override
-        public void record(DecisionContext<?> context, DecisionResult deterministicResult,
-                           AiDecisionAdvice advice, ValidatedAdvice validated) {
-        }
-
-        @Override
-        public void recordError(DecisionContext<?> context, DecisionResult deterministicResult, String errorType, String errorMessage) {
-            recordError(context, errorType, errorMessage);
-        }
-
-        @Override
-        public void recordError(DecisionContext<?> context, String errorType, String errorMessage) {
-        }
-    }
 }

@@ -6,9 +6,12 @@ import com.triagemate.triage.control.decision.DecisionResult;
 import com.triagemate.triage.control.decision.ReasonCode;
 import org.junit.jupiter.api.Test;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+
 import java.time.Instant;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -188,5 +191,27 @@ class AiAuditServiceTest {
                 ValidatedAdvice.advisory(advice));
 
         verify(repository, times(1)).save(any(AiAuditRecord.class));
+    }
+
+    @Test
+    void persistenceFailure_incrementsCounter() {
+        SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
+        AiAuditRepository repository = mock(AiAuditRepository.class);
+        doThrow(new RuntimeException("db down")).when(repository).save(any(AiAuditRecord.class));
+
+        AiAuditService service = new AiAuditService(repository, meterRegistry);
+        DecisionContext<?> context = DecisionContext.of("evt-010", "type", 1, Instant.now(), Map.of(), "payload");
+        AiDecisionAdvice advice = new AiDecisionAdvice(
+                "NORMAL", 0.8, "reason", false,
+                "provider", "model", "v1", "1.0.1", "hash", 0, 0, 0.0, 0
+        );
+
+        service.record(context,
+                DecisionResult.of(DecisionOutcome.ACCEPT, "det", Map.of(), ReasonCode.ACCEPTED_BY_DEFAULT, "ok"),
+                advice,
+                ValidatedAdvice.advisory(advice));
+
+        double failures = meterRegistry.find("triagemate.ai.audit.persistence.failures.total").counter().count();
+        assertEquals(1.0, failures, "Persistence failure counter should be incremented");
     }
 }

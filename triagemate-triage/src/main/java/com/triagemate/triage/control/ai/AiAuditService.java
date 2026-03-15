@@ -2,6 +2,8 @@ package com.triagemate.triage.control.ai;
 
 import com.triagemate.triage.control.decision.DecisionContext;
 import com.triagemate.triage.control.decision.DecisionResult;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -14,9 +16,19 @@ public class AiAuditService {
     private static final Logger log = LoggerFactory.getLogger(AiAuditService.class);
 
     private final AiAuditRepository repository;
+    private final Counter persistenceFailures;
 
-    public AiAuditService(AiAuditRepository repository) {
+    public AiAuditService(AiAuditRepository repository, MeterRegistry meterRegistry) {
         this.repository = repository;
+        this.persistenceFailures = Counter.builder("triagemate.ai.audit.persistence.failures.total")
+                .description("Number of AI audit record persistence failures")
+                .register(meterRegistry);
+    }
+
+    // Test-friendly constructor (no metrics)
+    protected AiAuditService(AiAuditRepository repository) {
+        this.repository = repository;
+        this.persistenceFailures = null;
     }
 
     public void record(
@@ -59,6 +71,9 @@ public class AiAuditService {
         try {
             repository.save(record);
         } catch (Exception e) {
+            if (persistenceFailures != null) {
+                persistenceFailures.increment();
+            }
             log.error("Failed to persist AI audit record for event {}: {}", eventId, e.getMessage());
         }
     }

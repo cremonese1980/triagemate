@@ -52,7 +52,7 @@ class AiAdvisedDecisionServiceTest {
                 stubDelegate,
                 stubAdvisor,
                 new AiAdviceValidator(properties),
-                new StubAuditService(),
+                new TestAiAuditService(),
                 new AiCostTracker(properties, meterRegistry),
                 new AiMetrics(meterRegistry),
                 cb, retry,
@@ -153,7 +153,7 @@ class AiAdvisedDecisionServiceTest {
                 stubDelegate,
                 slowAdvisor,
                 new AiAdviceValidator(timeoutProperties),
-                new StubAuditService(),
+                new TestAiAuditService(),
                 new AiCostTracker(timeoutProperties, meterRegistry),
                 new AiMetrics(meterRegistry),
                 CircuitBreakerRegistry.of(CircuitBreakerConfig.ofDefaults()).circuitBreaker("timeout"),
@@ -194,7 +194,7 @@ class AiAdvisedDecisionServiceTest {
                 stubDelegate,
                 stubAdvisor,
                 new AiAdviceValidator(tightBudgetProps),
-                new StubAuditService(),
+                new TestAiAuditService(),
                 costTracker,
                 new AiMetrics(meterRegistry),
                 CircuitBreakerRegistry.of(CircuitBreakerConfig.ofDefaults()).circuitBreaker("budget"),
@@ -234,7 +234,7 @@ class AiAdvisedDecisionServiceTest {
                 stubDelegate,
                 flakyAdvisor,
                 new AiAdviceValidator(properties),
-                new StubAuditService(),
+                new TestAiAuditService(),
                 new AiCostTracker(properties, meterRegistry),
                 new AiMetrics(meterRegistry),
                 CircuitBreakerRegistry.of(CircuitBreakerConfig.ofDefaults()).circuitBreaker("retry-transient"),
@@ -268,7 +268,7 @@ class AiAdvisedDecisionServiceTest {
                 stubDelegate,
                 permanentFailureAdvisor,
                 new AiAdviceValidator(properties),
-                new StubAuditService(),
+                new TestAiAuditService(),
                 new AiCostTracker(properties, meterRegistry),
                 new AiMetrics(meterRegistry),
                 CircuitBreakerRegistry.of(CircuitBreakerConfig.ofDefaults()).circuitBreaker("retry-permanent"),
@@ -293,7 +293,7 @@ class AiAdvisedDecisionServiceTest {
                 stubDelegate,
                 stubAdvisor,
                 new AiAdviceValidator(properties),
-                new StubAuditService(),
+                new TestAiAuditService(),
                 new AiCostTracker(properties, meterRegistry),
                 new AiMetrics(meterRegistry),
                 CircuitBreakerRegistry.of(CircuitBreakerConfig.ofDefaults()).circuitBreaker("queue-full"),
@@ -343,23 +343,4 @@ class AiAdvisedDecisionServiceTest {
         }
     }
 
-    static class StubAuditService extends AiAuditService {
-        StubAuditService() { super(record -> {}); }
-
-        @Override
-        public void record(DecisionContext<?> context, DecisionResult deterministicResult,
-                           AiDecisionAdvice advice, ValidatedAdvice validated) {
-            // no-op for tests
-        }
-
-        @Override
-        public void recordError(DecisionContext<?> context, DecisionResult deterministicResult, String errorType, String errorMessage) {
-            recordError(context, errorType, errorMessage);
-        }
-
-        @Override
-        public void recordError(DecisionContext<?> context, String errorType, String errorMessage) {
-            // no-op for tests
-        }
-    }
 }

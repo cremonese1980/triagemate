@@ -32,7 +32,7 @@ class AiVerificationScenariosTest {
 
     private SimpleMeterRegistry meterRegistry;
     private AiAdvisoryProperties properties;
-    private RecordingAuditService auditService;
+    private TestAiAuditService auditService;
 
     @BeforeEach
     void setUp() {
@@ -44,7 +44,7 @@ class AiVerificationScenariosTest {
                 new AiAdvisoryProperties.Cost(0.05, 100.0),
                 new AiAdvisoryProperties.Validation(0.70, 0.85)
         );
-        auditService = new RecordingAuditService();
+        auditService = new TestAiAuditService();
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -455,35 +455,4 @@ class AiVerificationScenariosTest {
         }
     }
 
-    /**
-     * Audit service that records whether calls were made and captures error details.
-     */
-    static class RecordingAuditService extends AiAuditService {
-        boolean recordCalled = false;
-        boolean errorCalled = false;
-        String lastErrorType = null;
-        String lastErrorMessage = null;
-
-        RecordingAuditService() {
-            super(record -> {});
-        }
-
-        @Override
-        public void record(DecisionContext<?> context, DecisionResult deterministicResult,
-                           AiDecisionAdvice advice, ValidatedAdvice validated) {
-            recordCalled = true;
-        }
-
-        @Override
-        public void recordError(DecisionContext<?> context, DecisionResult deterministicResult, String errorType, String errorMessage) {
-            recordError(context, errorType, errorMessage);
-        }
-
-        @Override
-        public void recordError(DecisionContext<?> context, String errorType, String errorMessage) {
-            errorCalled = true;
-            lastErrorType = errorType;
-            lastErrorMessage = errorMessage;
-        }
-    }
 }

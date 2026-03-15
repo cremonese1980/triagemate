@@ -46,7 +46,7 @@ class AiFallbackAndResilienceTest {
     private SimpleMeterRegistry meterRegistry;
     private AiAdvisoryProperties properties;
     private AiAdvisedDecisionServiceTest.StubDecisionService stubDelegate;
-    private AiAdvisedDecisionServiceTest.StubAuditService stubAudit;
+    private TestAiAuditService stubAudit;
 
     @BeforeEach
     void setUp() {
@@ -59,7 +59,7 @@ class AiFallbackAndResilienceTest {
                 new AiAdvisoryProperties.Validation(0.70, 0.85)
         );
         stubDelegate = new AiAdvisedDecisionServiceTest.StubDecisionService();
-        stubAudit = new AiAdvisedDecisionServiceTest.StubAuditService();
+        stubAudit = new TestAiAuditService();
     }
 
     // ──────────────────────────────────────────────────────────────

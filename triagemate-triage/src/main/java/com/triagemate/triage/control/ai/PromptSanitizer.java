@@ -16,7 +16,7 @@ public class PromptSanitizer {
                 // Basic PII patterns
                 .replaceAll("\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b", "[EMAIL]")
                 .replaceAll("\\b\\d{3}-\\d{2}-\\d{4}\\b", "[SSN]")
-                .replaceAll("\\b\\d{16}\\b", "[CARD]");
+                .replaceAll("\\b\\d{4}[- ]?\\d{4}[- ]?\\d{4}[- ]?\\d{4}\\b", "[CARD]");
         return cleaned.substring(0, Math.min(cleaned.length(), MAX_INPUT_LENGTH));
     }
 }

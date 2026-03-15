@@ -8,14 +8,27 @@ import io.micrometer.core.instrument.Timer;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 @Component
 public class AiMetrics {
 
     private final MeterRegistry registry;
 
+    private final Counter adviceAccepted;
+    private final Counter adviceRejected;
+    private final ConcurrentMap<String, Counter> callCounters = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, Timer> latencyTimers = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, Counter> costCounters = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, Counter> fallbackCounters = new ConcurrentHashMap<>();
+
     public AiMetrics(MeterRegistry registry) {
         this.registry = registry;
+        this.adviceAccepted = Counter.builder("triagemate.ai.advice.accepted.total")
+                .register(registry);
+        this.adviceRejected = Counter.builder("triagemate.ai.advice.rejected.total")
+                .register(registry);
     }
 
     /**
@@ -36,41 +49,45 @@ public class AiMetrics {
     }
 
     public void recordCall(String provider, String status, long latencyMs) {
-        Counter.builder("triagemate.ai.calls.total")
-                .tag("provider", provider != null ? provider : "unknown")
-                .tag("status", status)
-                .register(registry)
-                .increment();
+        String safeProvider = provider != null ? provider : "unknown";
+        String callKey = safeProvider + ":" + status;
 
-        Timer.builder("triagemate.ai.latency.seconds")
-                .tag("provider", provider != null ? provider : "unknown")
-                .register(registry)
-                .record(Duration.ofMillis(latencyMs));
+        callCounters.computeIfAbsent(callKey, k ->
+                Counter.builder("triagemate.ai.calls.total")
+                        .tag("provider", safeProvider)
+                        .tag("status", status)
+                        .register(registry)
+        ).increment();
+
+        latencyTimers.computeIfAbsent(safeProvider, k ->
+                Timer.builder("triagemate.ai.latency.seconds")
+                        .tag("provider", safeProvider)
+                        .register(registry)
+        ).record(Duration.ofMillis(latencyMs));
     }
 
     public void recordCost(String provider, double costUsd) {
-        Counter.builder("triagemate.ai.cost.usd.total")
-                .tag("provider", provider != null ? provider : "unknown")
-                .register(registry)
-                .increment(costUsd);
+        String safeProvider = provider != null ? provider : "unknown";
+        costCounters.computeIfAbsent(safeProvider, k ->
+                Counter.builder("triagemate.ai.cost.usd.total")
+                        .tag("provider", safeProvider)
+                        .register(registry)
+        ).increment(costUsd);
     }
 
     public void recordAdviceAccepted() {
-        Counter.builder("triagemate.ai.advice.accepted.total")
-                .register(registry)
-                .increment();
+        adviceAccepted.increment();
     }
 
     public void recordAdviceRejected() {
-        Counter.builder("triagemate.ai.advice.rejected.total")
-                .register(registry)
-                .increment();
+        adviceRejected.increment();
     }
 
     public void recordFallback(String reason) {
-        Counter.builder("triagemate.ai.fallback.total")
-                .tag("reason", reason)
-                .register(registry)
-                .increment();
+        fallbackCounters.computeIfAbsent(reason, k ->
+                Counter.builder("triagemate.ai.fallback.total")
+                        .tag("reason", reason)
+                        .register(registry)
+        ).increment();
     }
 }
