@@ -100,7 +100,7 @@ public class AiAdvisedDecisionService implements DecisionService {
         AtomicReference<Thread> aiThread = new AtomicReference<>();
         try {
             // Check budget before calling AI
-            costTracker.checkBudget(properties.cost().maxPerDecisionUsd());
+            costTracker.checkBudget(properties.cost().estimatedCostUsd());
 
             long timeoutMs = properties.timeouts().advisory().toMillis();
 

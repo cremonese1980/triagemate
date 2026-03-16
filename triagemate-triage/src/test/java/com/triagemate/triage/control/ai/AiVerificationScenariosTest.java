@@ -299,7 +299,7 @@ class AiVerificationScenariosTest {
                     true, "test", null, null,
                     Set.of("DEVICE_ERROR", "NORMAL"),
                     new AiAdvisoryProperties.Timeouts(Duration.ofSeconds(5)),
-                    new AiAdvisoryProperties.Cost(0.05, 0.01),
+                    new AiAdvisoryProperties.Cost(0.05, 0.01, 0.05),
                     new AiAdvisoryProperties.Validation(0.70, 0.85)
             );
 

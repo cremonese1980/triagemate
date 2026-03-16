@@ -78,6 +78,7 @@ class AiAdvisoryPropertiesTest {
         assert props.timeouts().advisory().equals(Duration.ofSeconds(5));
         assert props.cost().maxPerDecisionUsd() == 0.05;
         assert props.cost().maxDailyUsd() == 100.00;
+        assert props.cost().estimatedCostUsd() == 0.003;
         assert props.validation().minConfidenceForSuggestion() == 0.70;
         assert props.validation().minConfidenceForOverride() == 0.85;
     }

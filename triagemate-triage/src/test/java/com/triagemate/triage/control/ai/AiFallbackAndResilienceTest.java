@@ -519,7 +519,7 @@ class AiFallbackAndResilienceTest {
                     true, "test", null, null,
                     Set.of("DEVICE_ERROR", "NORMAL"),
                     new AiAdvisoryProperties.Timeouts(Duration.ofSeconds(5)),
-                    new AiAdvisoryProperties.Cost(0.05, 0.01),
+                    new AiAdvisoryProperties.Cost(0.05, 0.01, 0.05),
                     new AiAdvisoryProperties.Validation(0.70, 0.85)
             );
 
@@ -698,13 +698,13 @@ class AiFallbackAndResilienceTest {
 
         @Test
         void costAccumulation_acrossMultipleDecisions() {
-            // checkBudget uses maxPerDecisionUsd ($0.05) as estimated cost,
+            // checkBudget uses estimatedCostUsd ($0.05),
             // so daily check is: accumulated + $0.05 > maxDailyUsd
             AiAdvisoryProperties costProps = new AiAdvisoryProperties(
                     true, "test", null, null,
                     Set.of("DEVICE_ERROR", "NORMAL"),
                     new AiAdvisoryProperties.Timeouts(Duration.ofSeconds(5)),
-                    new AiAdvisoryProperties.Cost(0.05, 0.12),
+                    new AiAdvisoryProperties.Cost(0.05, 0.12, 0.05),
                     new AiAdvisoryProperties.Validation(0.70, 0.85)
             );
 
@@ -753,13 +753,13 @@ class AiFallbackAndResilienceTest {
 
         @Test
         void dailyCostReset_allowsNewCallsAfterReset() {
-            // checkBudget uses maxPerDecisionUsd ($0.05) as estimated cost
+            // checkBudget uses estimatedCostUsd ($0.05),
             // so daily check is: accumulated + $0.05 > maxDailyUsd ($0.07)
             AiAdvisoryProperties costProps = new AiAdvisoryProperties(
                     true, "test", null, null,
                     Set.of("DEVICE_ERROR", "NORMAL"),
                     new AiAdvisoryProperties.Timeouts(Duration.ofSeconds(5)),
-                    new AiAdvisoryProperties.Cost(0.05, 0.07),
+                    new AiAdvisoryProperties.Cost(0.05, 0.07, 0.05),
                     new AiAdvisoryProperties.Validation(0.70, 0.85)
             );
 
@@ -813,13 +813,13 @@ class AiFallbackAndResilienceTest {
 
         @Test
         void concurrentCheckAndRecord_neverExceedsBudget() throws Exception {
-            // Budget: $0.05 per decision, $0.50 daily
+            // Budget: $0.05 per decision, $0.50 daily, estimate $0.05
             // Each call costs $0.05, so max 10 calls allowed
             AiAdvisoryProperties costProps = new AiAdvisoryProperties(
                     true, "test", null, null,
                     Set.of("DEVICE_ERROR", "NORMAL"),
                     new AiAdvisoryProperties.Timeouts(Duration.ofSeconds(5)),
-                    new AiAdvisoryProperties.Cost(0.05, 0.50),
+                    new AiAdvisoryProperties.Cost(0.05, 0.50, 0.05),
                     new AiAdvisoryProperties.Validation(0.70, 0.85)
             );
 

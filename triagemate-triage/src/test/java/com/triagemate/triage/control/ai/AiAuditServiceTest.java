@@ -85,6 +85,31 @@ class AiAuditServiceTest {
     }
 
     @Test
+    void recordError_withDeterministicResult_usesDecisionIdFromAttributes() {
+        AiAuditRepository repository = mock(AiAuditRepository.class);
+        AiAuditService service = new AiAuditService(repository);
+
+        DecisionContext<?> context = DecisionContext.of(
+                "evt-009", "type", 1, Instant.now(), Map.of("requestId", "req-009"), "payload"
+        );
+
+        DecisionResult deterministic = DecisionResult.of(
+                DecisionOutcome.ACCEPT, "det",
+                Map.of("decisionId", "dec-from-result"),
+                ReasonCode.ACCEPTED_BY_DEFAULT, "ok"
+        );
+
+        service.recordError(context, deterministic, "BUDGET_EXCEEDED", "Daily cost exceeded");
+
+        verify(repository).save(argThat(record ->
+                record.decisionId().equals("dec-from-result")
+                        && record.eventId().equals("evt-009")
+                        && record.errorType().equals("BUDGET_EXCEEDED")
+                        && record.errorMessage().equals("Daily cost exceeded")
+        ));
+    }
+
+    @Test
     void recordError_shouldPersistErrorAuditRow() {
         AiAuditRepository repository = mock(AiAuditRepository.class);
         AiAuditService service = new AiAuditService(repository);

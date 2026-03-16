@@ -35,7 +35,14 @@ public record AiAdvisoryProperties(
         }
     }
 
-    public record Cost(double maxPerDecisionUsd, double maxDailyUsd) {
+    public record Cost(double maxPerDecisionUsd, double maxDailyUsd, double estimatedCostUsd) {
+        public Cost(double maxPerDecisionUsd, double maxDailyUsd) {
+            this(maxPerDecisionUsd, maxDailyUsd, 0.003);
+        }
+
+        public Cost {
+            if (estimatedCostUsd <= 0) estimatedCostUsd = 0.003;
+        }
     }
 
     public record Validation(double minConfidenceForSuggestion, double minConfidenceForOverride) {

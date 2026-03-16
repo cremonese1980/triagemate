@@ -66,6 +66,7 @@ triagemate:
     cost:
       max-per-decision-usd: 0.01
       max-daily-usd: 1.00
+      estimated-cost-usd: 0.01
 
   kafka:
     topics:

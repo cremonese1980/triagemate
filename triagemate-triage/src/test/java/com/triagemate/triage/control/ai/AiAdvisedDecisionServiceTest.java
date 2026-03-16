@@ -177,7 +177,7 @@ class AiAdvisedDecisionServiceTest {
                 true, "test", null, null,
                 Set.of("DEVICE_ERROR", "NORMAL"),
                 new AiAdvisoryProperties.Timeouts(Duration.ofSeconds(5)),
-                new AiAdvisoryProperties.Cost(0.05, 0.01), // daily budget = $0.01
+                new AiAdvisoryProperties.Cost(0.05, 0.01, 0.05), // daily budget = $0.01, estimate = $0.05
                 new AiAdvisoryProperties.Validation(0.70, 0.85)
         );
 
@@ -307,6 +307,63 @@ class AiAdvisedDecisionServiceTest {
         assertEquals(DecisionOutcome.ACCEPT, result.outcome());
         assertEquals(false, result.attributes().get("aiAdvicePresent"));
         assertEquals("NO_ADVICE", result.attributes().get("aiAdviceStatus"));
+    }
+
+    @Test
+    void perDecisionBudget_blocksWhenEstimateExceedsLimit() {
+        // estimatedCostUsd = 0.10 > maxPerDecisionUsd = 0.05 → blocked immediately
+        AiAdvisoryProperties perDecisionProps = new AiAdvisoryProperties(
+                true, "test", null, null,
+                Set.of("DEVICE_ERROR", "NORMAL"),
+                new AiAdvisoryProperties.Timeouts(Duration.ofSeconds(5)),
+                new AiAdvisoryProperties.Cost(0.05, 100.0, 0.10), // estimate > limit
+                new AiAdvisoryProperties.Validation(0.70, 0.85)
+        );
+
+        StubAiAdvisor advisor = new StubAiAdvisor();
+        advisor.setAdvice(new AiDecisionAdvice(
+                "DEVICE_ERROR", 0.92, "Should not be called", true,
+                "test", "model", "v1", "1.0.0", "hash",
+                10, 20, 0.001, 50
+        ));
+
+        AiCostTracker costTracker = new AiCostTracker(perDecisionProps, meterRegistry);
+
+        AiAdvisedDecisionService perDecisionService = new AiAdvisedDecisionService(
+                stubDelegate, advisor,
+                new AiAdviceValidator(perDecisionProps),
+                new TestAiAuditService(),
+                costTracker,
+                new AiMetrics(meterRegistry),
+                CircuitBreakerRegistry.of(CircuitBreakerConfig.ofDefaults()).circuitBreaker("per-decision"),
+                RetryRegistry.of(RetryConfig.custom().maxAttempts(1).build()).retry("per-decision"),
+                Executors.newSingleThreadExecutor(),
+                perDecisionProps
+        );
+
+        DecisionResult result = perDecisionService.decide(createContext());
+
+        assertEquals(DecisionOutcome.ACCEPT, result.outcome());
+        assertEquals(false, result.attributes().get("aiAdvicePresent"));
+        assertEquals("NO_ADVICE", result.attributes().get("aiAdviceStatus"));
+        assertEquals(0.0, costTracker.getDailyCostUsd(), "No cost should be recorded when budget blocks pre-call");
+    }
+
+    @Test
+    void advisoryConfidence_doesNotOverride() {
+        // Confidence 0.75: above suggestion (0.70) but below override (0.85) → ADVISORY, no override
+        stubAdvisor.setAdvice(new AiDecisionAdvice(
+                "DEVICE_ERROR", 0.75, "Moderate signal", false,
+                "test", "model", "v1", "1.0.0", "hash",
+                10, 20, 0.001, 50
+        ));
+
+        DecisionResult result = service.decide(createContext());
+
+        assertEquals(DecisionOutcome.ACCEPT, result.outcome());
+        assertEquals("deterministic-test", result.reason());
+        assertEquals("ADVISORY", result.attributes().get("aiAdviceStatus"));
+        assertFalse(result.attributes().containsKey("aiOverrideApplied"));
     }
 
     private DecisionContext<?> createContext() {
