@@ -6,6 +6,7 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -18,6 +19,7 @@ public class AiAuditService {
     private final AiAuditRepository repository;
     private final Counter persistenceFailures;
 
+    @Autowired
     public AiAuditService(AiAuditRepository repository, MeterRegistry meterRegistry) {
         this.repository = repository;
         this.persistenceFailures = Counter.builder("triagemate.ai.audit.persistence.failures.total")
