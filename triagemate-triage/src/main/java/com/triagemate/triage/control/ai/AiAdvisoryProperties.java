@@ -40,6 +40,7 @@ public record AiAdvisoryProperties(
             this(maxPerDecisionUsd, maxDailyUsd, 0.003);
         }
 
+        @ConstructorBinding
         public Cost {
             if (estimatedCostUsd <= 0) estimatedCostUsd = 0.003;
         }
