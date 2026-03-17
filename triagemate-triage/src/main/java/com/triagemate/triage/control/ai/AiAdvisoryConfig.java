@@ -7,7 +7,6 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -16,7 +15,6 @@ import java.util.concurrent.Executor;
 
 @Configuration
 @ConditionalOnProperty(name = "triagemate.ai.enabled", havingValue = "true")
-@EnableConfigurationProperties(AiAdvisoryProperties.class)
 public class AiAdvisoryConfig {
 
     @Bean

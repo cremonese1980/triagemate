@@ -28,7 +28,8 @@ public class AiCostTracker {
     @PostConstruct
     void logBudgetConfig() {
         if (properties.cost() != null) {
-            log.info("AI cost tracker initialized: maxPerDecision={} USD, maxDaily={} USD, estimate={} USD",
+            log.info("AI cost tracker initialized [props@{}]: maxPerDecision={} USD, maxDaily={} USD, estimate={} USD",
+                    Integer.toHexString(System.identityHashCode(properties)),
                     properties.cost().maxPerDecisionUsd(), properties.cost().maxDailyUsd(),
                     properties.cost().estimatedCostUsd());
         }
@@ -37,6 +38,11 @@ public class AiCostTracker {
     public synchronized void checkBudget(double estimatedCostUsd) {
         if (properties.cost() == null) return;
 
+        double current = dailyCostUsd.get();
+        log.info("Budget check: daily={}, estimate={}, maxPerDecision={}, maxDaily={}",
+                current, estimatedCostUsd,
+                properties.cost().maxPerDecisionUsd(), properties.cost().maxDailyUsd());
+
         if (estimatedCostUsd > properties.cost().maxPerDecisionUsd()) {
             budgetExceededCounter.increment();
             throw new BudgetExceededException(
@@ -44,7 +50,6 @@ public class AiCostTracker {
                             + " > " + properties.cost().maxPerDecisionUsd());
         }
 
-        double current = dailyCostUsd.get();
         if (current + estimatedCostUsd > properties.cost().maxDailyUsd()) {
             budgetExceededCounter.increment();
             throw new BudgetExceededException(
@@ -54,7 +59,8 @@ public class AiCostTracker {
     }
 
     public synchronized void recordCost(double costUsd) {
-        dailyCostUsd.updateAndGet(current -> current + costUsd);
+        double newTotal = dailyCostUsd.updateAndGet(current -> current + costUsd);
+        log.info("Cost recorded: {} USD, daily total now: {} USD", costUsd, newTotal);
     }
 
     public double getDailyCostUsd() {
