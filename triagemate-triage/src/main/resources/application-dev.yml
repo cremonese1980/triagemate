@@ -19,8 +19,8 @@ triagemate:
     timeouts:
       advisory: 5s
     cost:
-      max-per-decision-usd: 0.05
-      max-daily-usd: 100.00
+      max-per-decision-usd: 0.0031
+      max-daily-usd: 0.005
       estimated-cost-usd: 0.003
     validation:
       min-confidence-for-suggestion: 0.70
