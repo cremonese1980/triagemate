@@ -79,7 +79,7 @@ public class AiAdvisedDecisionService implements DecisionService {
             auditService.record(context, deterministicResult, advice, validated);
             metrics.recordCall(advice.provider(), "success", advice.latencyMs());
             if (advice.costUsd() > 0) {
-                costTracker.recordCost(advice.costUsd());
+                costTracker.recordActualCost(properties.cost().estimatedCostUsd(), advice.costUsd());
                 metrics.recordCost(advice.provider(), advice.costUsd());
             }
         }
@@ -99,8 +99,8 @@ public class AiAdvisedDecisionService implements DecisionService {
         CompletableFuture<AiDecisionAdvice> future = null;
         AtomicReference<Thread> aiThread = new AtomicReference<>();
         try {
-            // Check budget before calling AI
-            costTracker.checkBudget(properties.cost().estimatedCostUsd());
+            // Atomically check budget and reserve estimated cost
+            costTracker.checkAndReserveBudget(properties.cost().estimatedCostUsd());
 
             long timeoutMs = properties.timeouts().advisory().toMillis();
 

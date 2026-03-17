@@ -836,8 +836,7 @@ class AiFallbackAndResilienceTest {
                 pool.submit(() -> {
                     try {
                         startGate.await();
-                        costTracker.checkBudget(0.05);
-                        costTracker.recordCost(0.05);
+                        costTracker.checkAndReserveBudget(0.05);
                         successCount.incrementAndGet();
                     } catch (BudgetExceededException e) {
                         budgetExceededCount.incrementAndGet();
