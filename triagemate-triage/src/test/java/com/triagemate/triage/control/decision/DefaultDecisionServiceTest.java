@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class DefaultDecisionServiceTest {
 
@@ -32,6 +33,7 @@ class DefaultDecisionServiceTest {
         assertEquals(DecisionOutcome.ACCEPT, result.outcome());
         assertEquals("deterministic-default-accept", result.reason());
         assertEquals("rules-v1", result.attributes().get("strategy"));
+        assertNotNull(result.attributes().get("decisionId"), "decisionId must be generated");
         assertEquals(ReasonCode.ACCEPTED_BY_DEFAULT, result.reasonCode());
         assertEquals("All policies passed; accepted by default", result.humanReadableReason());
     }
@@ -69,6 +71,7 @@ class DefaultDecisionServiceTest {
         assertEquals(DecisionOutcome.REJECT, result.outcome());
         assertEquals("blocked-by-test", result.reason());
         assertEquals("policy-rejection", result.attributes().get("strategy"));
+        assertNotNull(result.attributes().get("decisionId"), "decisionId must be generated on reject");
         assertEquals(ReasonCode.POLICY_REJECTED, result.reasonCode());
     }
 
@@ -87,6 +90,7 @@ class DefaultDecisionServiceTest {
         assertEquals(DecisionOutcome.REJECT, result.outcome());
         assertEquals("over-budget", result.reason());
         assertEquals("cost-limit-exceeded", result.attributes().get("strategy"));
+        assertNotNull(result.attributes().get("decisionId"), "decisionId must be generated on cost reject");
         assertEquals(ReasonCode.COST_LIMIT_EXCEEDED, result.reasonCode());
     }
 }

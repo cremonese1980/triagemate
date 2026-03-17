@@ -6,6 +6,7 @@ import com.triagemate.triage.control.policy.PolicyResult;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 public class DefaultDecisionService implements DecisionService {
 
@@ -20,11 +21,14 @@ public class DefaultDecisionService implements DecisionService {
     @Override
     public DecisionResult decide(DecisionContext<?> context) {
 
+        String decisionId = UUID.randomUUID().toString();
+
         // Step 1: Policy evaluation
         for (Policy policy : policies) {
             PolicyResult policyResult = policy.evaluate(context);
             if (!policyResult.allowed()) {
                 Map<String, Object> attributes = new HashMap<>();
+                attributes.put("decisionId", decisionId);
                 attributes.put("strategy", "policy-rejection");
                 attributes.putAll(policyResult.metadata());
                 return DecisionResult.of(
@@ -40,11 +44,14 @@ public class DefaultDecisionService implements DecisionService {
         // Step 2: Cost evaluation
         CostDecision costDecision = costGuard.evaluateCost(context);
         if (!costDecision.allowed()) {
+            Map<String, Object> attributes = new HashMap<>();
+            attributes.put("decisionId", decisionId);
+            attributes.put("strategy", "cost-limit-exceeded");
+            attributes.put("estimatedCost", String.valueOf(costDecision.estimatedCost()));
             return DecisionResult.of(
                     DecisionOutcome.REJECT,
                     costDecision.reason(),
-                    Map.of("strategy", "cost-limit-exceeded",
-                           "estimatedCost", String.valueOf(costDecision.estimatedCost())),
+                    attributes,
                     ReasonCode.COST_LIMIT_EXCEEDED,
                     "Request rejected by cost guard: " + costDecision.reason()
             );
@@ -54,7 +61,7 @@ public class DefaultDecisionService implements DecisionService {
         return DecisionResult.of(
                 DecisionOutcome.ACCEPT,
                 "deterministic-default-accept",
-                Map.of("strategy", "rules-v1"),
+                Map.of("decisionId", decisionId, "strategy", "rules-v1"),
                 ReasonCode.ACCEPTED_BY_DEFAULT,
                 "All policies passed; accepted by default"
         );

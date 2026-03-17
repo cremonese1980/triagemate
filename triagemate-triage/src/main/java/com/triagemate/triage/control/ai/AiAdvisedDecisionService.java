@@ -156,10 +156,12 @@ public class AiAdvisedDecisionService implements DecisionService {
             }
 
             String errorType = cause instanceof TimeoutException ? "TIMEOUT" : "ERROR";
-            log.warn("AI advisory failed ({}): {}", errorType, cause.getMessage());
+            String errorMessage = cause.getMessage() != null ? cause.getMessage()
+                    : errorType + " after " + properties.timeouts().advisory().toMillis() + "ms";
+            log.warn("AI advisory failed ({}): {}", errorType, errorMessage);
             metrics.recordFallback(errorType.toLowerCase());
             metrics.recordCall(properties.provider(), "error", 0);
-            auditService.recordError(context, deterministicResult, errorType, cause.getMessage());
+            auditService.recordError(context, deterministicResult, errorType, errorMessage);
             return AiDecisionAdvice.NONE;
         }
     }

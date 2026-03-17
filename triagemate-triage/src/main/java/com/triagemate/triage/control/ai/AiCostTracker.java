@@ -2,6 +2,7 @@ package com.triagemate.triage.control.ai;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -22,6 +23,15 @@ public class AiCostTracker {
         this.budgetExceededCounter = Counter.builder("triagemate.ai.budget.exceeded.total")
                 .description("Number of times AI budget was exceeded")
                 .register(meterRegistry);
+    }
+
+    @PostConstruct
+    void logBudgetConfig() {
+        if (properties.cost() != null) {
+            log.info("AI cost tracker initialized: maxPerDecision={} USD, maxDaily={} USD, estimate={} USD",
+                    properties.cost().maxPerDecisionUsd(), properties.cost().maxDailyUsd(),
+                    properties.cost().estimatedCostUsd());
+        }
     }
 
     public synchronized void checkBudget(double estimatedCostUsd) {

@@ -13,12 +13,15 @@ triagemate:
   ai:
     enabled: ${AI_ENABLED:true}
     provider: ${AI_PROVIDER:ollama}
+    model: ${AI_MODEL:llama3}
+    model-version: ${AI_MODEL_VERSION:latest}
     allowed-classifications: ${AI_ALLOWED_CLASSIFICATIONS:NORMAL, DEVICE_ERROR}
     timeouts:
-      advisory: 1ms
+      advisory: 5s
     cost:
       max-per-decision-usd: 0.05
       max-daily-usd: 100.00
+      estimated-cost-usd: 0.003
     validation:
       min-confidence-for-suggestion: 0.70
       min-confidence-for-override: 0.85

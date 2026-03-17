@@ -80,7 +80,7 @@ class AiAdvisoryScenariosTest {
                 context -> DecisionResult.of(
                         DecisionOutcome.ACCEPT,
                         "deterministic",
-                        Map.of("strategy", "rules-v1"),
+                        Map.of("decisionId", "dec-stub", "strategy", "rules-v1"),
                         ReasonCode.ACCEPTED_BY_DEFAULT,
                         "All policies passed"
                 ),
@@ -139,7 +139,7 @@ class AiAdvisoryScenariosTest {
         return DecisionResult.of(
                 DecisionOutcome.ACCEPT,
                 "deterministic",
-                Map.of("strategy", "rules-v1"),
+                Map.of("decisionId", "dec-stub", "strategy", "rules-v1"),
                 ReasonCode.ACCEPTED_BY_DEFAULT,
                 "All policies passed"
         );

@@ -449,7 +449,7 @@ class AiVerificationScenariosTest {
         public DecisionResult decide(DecisionContext<?> context) {
             return DecisionResult.of(
                     DecisionOutcome.ACCEPT, "deterministic-test",
-                    Map.of("strategy", "rules-v1"),
+                    Map.of("decisionId", "dec-stub-" + context.eventId(), "strategy", "rules-v1"),
                     ReasonCode.ACCEPTED_BY_DEFAULT, "All policies passed"
             );
         }
