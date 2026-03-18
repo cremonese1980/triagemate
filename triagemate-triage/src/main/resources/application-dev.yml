@@ -10,6 +10,10 @@ spring:
     bootstrap-servers: localhost:29092
 
 triagemate:
+
+  policy:
+    version: "1.0.0"
+
   ai:
     enabled: ${AI_ENABLED:true}
     provider: ${AI_PROVIDER:ollama}
