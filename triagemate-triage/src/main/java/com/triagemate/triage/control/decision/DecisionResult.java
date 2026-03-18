@@ -7,22 +7,36 @@ public record DecisionResult(
         String reason,
         Map<String, Object> attributes,
         ReasonCode reasonCode,
-        String humanReadableReason
+        String humanReadableReason,
+        String policyVersion
 ) {
     public DecisionResult {
         attributes = attributes == null ? Map.of() : Map.copyOf(attributes);
     }
 
-    /** Backward-compatible factory: no reasonCode or humanReadableReason. */
+    /** Backward-compatible factory: no reasonCode, humanReadableReason, or policyVersion. */
     public static DecisionResult of(DecisionOutcome outcome, String reason, Map<String, Object> attributes) {
-        return new DecisionResult(outcome, reason, attributes, null, null);
+        return new DecisionResult(outcome, reason, attributes, null, null, null);
     }
 
-    /** Full factory with explainability fields. */
+    /** Factory with explainability fields but no policyVersion. */
     public static DecisionResult of(
             DecisionOutcome outcome, String reason, Map<String, Object> attributes,
             ReasonCode reasonCode, String humanReadableReason
     ) {
-        return new DecisionResult(outcome, reason, attributes, reasonCode, humanReadableReason);
+        return new DecisionResult(outcome, reason, attributes, reasonCode, humanReadableReason, null);
+    }
+
+    /** Full factory with explainability fields and policyVersion. */
+    public static DecisionResult of(
+            DecisionOutcome outcome, String reason, Map<String, Object> attributes,
+            ReasonCode reasonCode, String humanReadableReason, String policyVersion
+    ) {
+        return new DecisionResult(outcome, reason, attributes, reasonCode, humanReadableReason, policyVersion);
+    }
+
+    /** Returns a copy of this result with the given policyVersion. */
+    public DecisionResult withPolicyVersion(String policyVersion) {
+        return new DecisionResult(outcome, reason, attributes, reasonCode, humanReadableReason, policyVersion);
     }
 }

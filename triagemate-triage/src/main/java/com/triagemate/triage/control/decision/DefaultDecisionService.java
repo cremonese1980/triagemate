@@ -2,6 +2,7 @@ package com.triagemate.triage.control.decision;
 
 import com.triagemate.triage.control.policy.Policy;
 import com.triagemate.triage.control.policy.PolicyResult;
+import com.triagemate.triage.control.policy.PolicyVersionProvider;
 
 import java.util.HashMap;
 import java.util.List;
@@ -12,16 +13,20 @@ public class DefaultDecisionService implements DecisionService {
 
     private final List<Policy> policies;
     private final CostGuard costGuard;
+    private final PolicyVersionProvider policyVersionProvider;
 
-    public DefaultDecisionService(List<Policy> policies, CostGuard costGuard) {
+    public DefaultDecisionService(List<Policy> policies, CostGuard costGuard,
+                                  PolicyVersionProvider policyVersionProvider) {
         this.policies = policies;
         this.costGuard = costGuard;
+        this.policyVersionProvider = policyVersionProvider;
     }
 
     @Override
     public DecisionResult decide(DecisionContext<?> context) {
 
         String decisionId = UUID.randomUUID().toString();
+        String policyVersion = policyVersionProvider.currentVersion();
 
         // Step 1: Policy evaluation
         for (Policy policy : policies) {
@@ -36,7 +41,8 @@ public class DefaultDecisionService implements DecisionService {
                         policyResult.reason(),
                         attributes,
                         ReasonCode.POLICY_REJECTED,
-                        "Request rejected by policy: " + policyResult.reason()
+                        "Request rejected by policy: " + policyResult.reason(),
+                        policyVersion
                 );
             }
         }
@@ -53,7 +59,8 @@ public class DefaultDecisionService implements DecisionService {
                     costDecision.reason(),
                     attributes,
                     ReasonCode.COST_LIMIT_EXCEEDED,
-                    "Request rejected by cost guard: " + costDecision.reason()
+                    "Request rejected by cost guard: " + costDecision.reason(),
+                    policyVersion
             );
         }
 
@@ -63,7 +70,8 @@ public class DefaultDecisionService implements DecisionService {
                 "deterministic-default-accept",
                 Map.of("decisionId", decisionId, "strategy", "rules-v1"),
                 ReasonCode.ACCEPTED_BY_DEFAULT,
-                "All policies passed; accepted by default"
+                "All policies passed; accepted by default",
+                policyVersion
         );
     }
 }
