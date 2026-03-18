@@ -10,6 +10,7 @@ import com.triagemate.triage.persistence.DecisionRecord;
 import com.triagemate.triage.persistence.DecisionRecordRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -26,7 +27,7 @@ public class ReplayService {
     private final ObjectMapper objectMapper;
 
     public ReplayService(DecisionRecordRepository repository,
-                         DecisionService decisionService,
+                         @Qualifier("deterministicDecisionService") DecisionService decisionService,
                          ObjectMapper objectMapper) {
         this.repository = repository;
         this.decisionService = decisionService;

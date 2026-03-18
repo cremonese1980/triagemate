@@ -366,6 +366,16 @@ class AiAdvisedDecisionServiceTest {
         assertFalse(result.attributes().containsKey("aiOverrideApplied"));
     }
 
+    @Test
+    void preservesPolicyVersionWhenAiDecoratesDecision() {
+        stubDelegate.setPolicyVersion("3.2.1");
+        stubAdvisor.setAdvice(AiDecisionAdvice.NONE);
+
+        DecisionResult result = service.decide(createContext());
+
+        assertEquals("3.2.1", result.policyVersion());
+    }
+
     private DecisionContext<?> createContext() {
         return DecisionContext.of(
                 "evt-123", "device.telemetry", 1,
@@ -376,12 +386,18 @@ class AiAdvisedDecisionServiceTest {
     // Stubs
 
     static class StubDecisionService implements DecisionService {
+        private String policyVersion = "1.0.0";
+
+        void setPolicyVersion(String policyVersion) {
+            this.policyVersion = policyVersion;
+        }
+
         @Override
         public DecisionResult decide(DecisionContext<?> context) {
             return DecisionResult.of(
                     DecisionOutcome.ACCEPT, "deterministic-test",
                     Map.of("decisionId", "dec-stub-" + context.eventId(), "strategy", "rules-v1"),
-                    ReasonCode.ACCEPTED_BY_DEFAULT, "All policies passed"
+                    ReasonCode.ACCEPTED_BY_DEFAULT, "All policies passed", policyVersion
             );
         }
     }

@@ -12,6 +12,7 @@ import java.util.List;
 public class DecisionConfig {
 
     @Bean
+    @org.springframework.beans.factory.annotation.Qualifier("deterministicDecisionService")
     DecisionService decisionService(List<Policy> policies, CostGuard costGuard,
                                     PolicyVersionProvider policyVersionProvider) {
         return new DefaultDecisionService(policies, costGuard, policyVersionProvider);

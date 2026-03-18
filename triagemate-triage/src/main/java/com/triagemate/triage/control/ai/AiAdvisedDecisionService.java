@@ -191,7 +191,8 @@ public class AiAdvisedDecisionService implements DecisionService {
                     validated.advice().suggestedClassification(),
                     enrichedAttributes,
                     deterministicResult.reasonCode(),
-                    "AI override: " + validated.advice().reasoning()
+                    "AI override: " + validated.advice().reasoning(),
+                    deterministicResult.policyVersion()
             );
         }
 
@@ -200,7 +201,8 @@ public class AiAdvisedDecisionService implements DecisionService {
                 deterministicResult.reason(),
                 enrichedAttributes,
                 deterministicResult.reasonCode(),
-                deterministicResult.humanReadableReason()
+                deterministicResult.humanReadableReason(),
+                deterministicResult.policyVersion()
         );
     }
 }

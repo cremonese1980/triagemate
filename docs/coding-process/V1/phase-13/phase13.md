@@ -792,6 +792,17 @@ void phase9Through12Invariants_stillWork() {
 | 7 | Process new event | Decision persisted with `policy_version = "2.0.0"` |
 | 8 | Compare decisions: `SELECT outcome, policy_version FROM decisions` | Different versions visible |
 
+### Manual Verification Checklist — Extension
+
+> Keep the original 8 steps unchanged. Add these checks to cover replay determinism, artifact completeness, and backward compatibility.
+
+| Step | Command | Expected Result |
+|------|---------|-----------------|
+| 9 | Replay the same decision again without changing policy/config | `driftDetected = false` and the replay outcome matches the persisted outcome |
+| 10 | Check DB: `SELECT reason_code, human_readable_reason, input_snapshot, attributes_snapshot FROM decisions WHERE decision_id = '{decisionId}'` | All explainability artifacts are populated and readable |
+| 11 | Check outbox: `SELECT aggregate_id, status, payload FROM outbox_events WHERE aggregate_id = '{decisionId}'` | One outbox row exists, status is `SENT`, and payload contains the same `policyVersion` persisted in `decisions` |
+| 12 | Replay by original `event_id` via service/API path used in the environment | The same decision can be reloaded from `event_id`, not only from `decision_id` |
+
 ---
 
 ## 🅓 Done Criteria
