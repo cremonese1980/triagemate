@@ -162,7 +162,7 @@ class OutboxTraceEmbeddingTest {
         OutboxEvent saved = outboxCaptor.getValue();
 
         JsonNode root = objectMapper.readTree(saved.getPayload());
-        JsonNode metadataNode = root.path("metadata");
+        JsonNode metadataNode = root.path("meta");
 
         assertThat(metadataNode.path("decisionId").asText()).isEqualTo(decisionId);
         assertThat(metadataNode.path("policyVersion").asText()).isEqualTo("2.1.0");
