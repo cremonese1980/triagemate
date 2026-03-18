@@ -86,8 +86,6 @@ class ReplayControllerTest {
     @Test
     void replayDecisionByEventId_whenNotFound_delegatesException() {
         String eventId = "evt-missing-999";
-        when(replayService.replayByEventId(eventId))
-                .thenThrow(new DecisionNotFoundException(eventId));
 
         Map<String, String> response = controller.handleNotFound(
                 new DecisionNotFoundException(eventId));
