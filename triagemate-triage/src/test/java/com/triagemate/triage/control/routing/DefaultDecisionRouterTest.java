@@ -4,6 +4,7 @@ import com.triagemate.triage.control.decision.DecisionContext;
 import com.triagemate.triage.control.decision.DecisionOutcome;
 import com.triagemate.triage.control.decision.DecisionResult;
 import com.triagemate.triage.exception.RetryableDecisionException;
+import com.triagemate.triage.persistence.DecisionPersistenceService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,11 +23,14 @@ class DefaultDecisionRouterTest {
     @Mock
     private DecisionOutcomePublisher publisher;
 
+    @Mock
+    private DecisionPersistenceService persistenceService;
+
     private DefaultDecisionRouter router;
 
     @BeforeEach
     void setUp() {
-        router = new DefaultDecisionRouter(publisher);
+        router = new DefaultDecisionRouter(publisher, persistenceService);
     }
 
     private final DecisionContext<String> context = DecisionContext.of(
@@ -39,34 +43,37 @@ class DefaultDecisionRouterTest {
     );
 
     @Test
-    void routeAcceptPublishesDecision() {
+    void routeAcceptPublishesAndPersistsDecision() {
         DecisionResult result = DecisionResult.of(DecisionOutcome.ACCEPT, "accepted", Map.of());
 
         router.route(result, context);
 
+        verify(persistenceService, times(1)).persist(result, context);
         verify(publisher, times(1)).publish(result, context);
     }
 
     @Test
-    void routeRejectPublishesDecision() {
+    void routeRejectPublishesAndPersistsDecision() {
         DecisionResult result = DecisionResult.of(DecisionOutcome.REJECT, "rejected", Map.of());
 
         router.route(result, context);
 
+        verify(persistenceService, times(1)).persist(result, context);
         verify(publisher, times(1)).publish(result, context);
     }
 
     @Test
-    void routeDeferPublishesDecision() {
+    void routeDeferPublishesAndPersistsDecision() {
         DecisionResult result = DecisionResult.of(DecisionOutcome.DEFER, "deferred", Map.of());
 
         router.route(result, context);
 
+        verify(persistenceService, times(1)).persist(result, context);
         verify(publisher, times(1)).publish(result, context);
     }
 
     @Test
-    void routeRetryPublishesAndThrowsRetryableException() {
+    void routeRetryPublishesPersistsAndThrowsRetryableException() {
         DecisionResult result = DecisionResult.of(DecisionOutcome.RETRY, "retry-later", Map.of());
 
         assertThrows(
@@ -74,6 +81,7 @@ class DefaultDecisionRouterTest {
                 () -> router.route(result, context)
         );
 
+        verify(persistenceService, times(1)).persist(result, context);
         verify(publisher, times(1)).publish(result, context);
     }
 
