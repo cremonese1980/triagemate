@@ -84,6 +84,31 @@ class ReplayControllerTest {
     }
 
     @Test
+    void replayDecisionByEventId_whenNotFound_delegatesException() {
+        String eventId = "evt-missing-999";
+        when(replayService.replayByEventId(eventId))
+                .thenThrow(new DecisionNotFoundException(eventId));
+
+        Map<String, String> response = controller.handleNotFound(
+                new DecisionNotFoundException(eventId));
+
+        assertThat(response).containsKey("error");
+        assertThat(response.get("error")).contains(eventId);
+    }
+
+    @Test
+    void handleNotFound_returns404Message_forEventId() {
+        String eventId = "evt-not-found-001";
+        var ex = new DecisionNotFoundException(eventId);
+
+        Map<String, String> response = controller.handleNotFound(ex);
+
+        assertThat(response).containsKey("error");
+        assertThat(response.get("error")).contains(eventId);
+        assertThat(response.get("error")).contains("event");
+    }
+
+    @Test
     void batchReplayRequest_handlesNullList() {
         var request = new ReplayController.BatchReplayRequest(null);
 

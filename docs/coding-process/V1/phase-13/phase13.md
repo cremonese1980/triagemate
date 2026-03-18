@@ -793,7 +793,7 @@ void phase9Through12Invariants_stillWork() {
 | 8 | Compare decisions: `SELECT outcome, policy_version FROM decisions` | Different versions visible |
 | 9 | Replay same event with same policy version | No drift detected (`driftDetected = false`) |
 | 10 | Verify explainability artifacts: `SELECT decision_id, event_id, policy_version, outcome, reason_code, human_readable_reason, input_snapshot, attributes_snapshot FROM decisions` | All non-nullable fields populated, JSONB columns valid |
-| 11 | Cross-check outbox ↔ decision: `SELECT d.event_id, o.event_id FROM decisions d JOIN outbox_events o ON d.event_id = o.event_id` | 1:1 correspondence for each processed event |
+| 11 | Cross-check outbox ↔ decision: `SELECT d.decision_id, o.aggregate_id FROM decisions d JOIN outbox_events o ON d.decision_id::text = o.aggregate_id` | 1:1 correspondence for each processed event |
 | 12 | Replay by event_id: `curl -X POST localhost:8080/internal/replay/by-event/{eventId}` | Returns comparison JSON matching decision record |
 
 ---
@@ -808,14 +808,10 @@ void phase9Through12Invariants_stillWork() {
 
 ### Manual Verification Checklist — Extension
 
-> Keep the original 8 steps unchanged. Add these checks to cover replay determinism, artifact completeness, and backward compatibility.
+> Steps 13–16 extend the original 12-step checklist above. They cover replay restart safety, AI artifact persistence, reject-path explainability, and reject replay stability.
 
 | Step | Command | Expected Result |
 |------|---------|-----------------|
-| 9 | Replay the same decision again without changing policy/config | `driftDetected = false` and the replay outcome matches the persisted outcome |
-| 10 | Check DB: `SELECT reason_code, human_readable_reason, input_snapshot, attributes_snapshot FROM decisions WHERE decision_id = '{decisionId}'` | All explainability artifacts are populated and readable |
-| 11 | Check outbox: `SELECT aggregate_id, status, payload FROM outbox_events WHERE aggregate_id = '{decisionId}'` | One outbox row exists, status is `SENT`, and payload contains the same `policyVersion` persisted in `decisions` |
-| 12 | Replay by original `event_id` via service/API path used in the environment | The same decision can be reloaded from `event_id`, not only from `decision_id` |
 | 13 | Repeat step 12 after restarting the service, without changing config | Replay by `event_id` still resolves the same persisted decision artifact after restart |
 | 14 | Process an event that takes the AI advisory path, then inspect `decisions.attributes_snapshot` | Persisted attributes include AI advisory markers (`aiAdvicePresent`, `aiAdviceStatus`, and related metadata when advice exists) without breaking deterministic replay |
 | 15 | Trigger a reject path (policy or cost guard), then inspect `decisions.reason_code` and `human_readable_reason` | Reject decisions persist explainability fields coherently, not only ACCEPT flows |

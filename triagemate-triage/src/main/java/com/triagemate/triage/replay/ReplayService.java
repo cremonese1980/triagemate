@@ -78,6 +78,7 @@ public class ReplayService {
         );
     }
 
+    // Input snapshot is critical for replay — deserialization failure is fatal
     private InputReceivedV1 deserializeInput(String json) {
         try {
             return objectMapper.readValue(json, InputReceivedV1.class);
@@ -86,6 +87,7 @@ public class ReplayService {
         }
     }
 
+    // Attributes are accessory context — deserialization failure is graceful (empty map)
     private Map<String, Object> deserializeAttributes(String json) {
         if (json == null || json.isBlank()) {
             return Map.of();
