@@ -816,6 +816,10 @@ void phase9Through12Invariants_stillWork() {
 | 10 | Check DB: `SELECT reason_code, human_readable_reason, input_snapshot, attributes_snapshot FROM decisions WHERE decision_id = '{decisionId}'` | All explainability artifacts are populated and readable |
 | 11 | Check outbox: `SELECT aggregate_id, status, payload FROM outbox_events WHERE aggregate_id = '{decisionId}'` | One outbox row exists, status is `SENT`, and payload contains the same `policyVersion` persisted in `decisions` |
 | 12 | Replay by original `event_id` via service/API path used in the environment | The same decision can be reloaded from `event_id`, not only from `decision_id` |
+| 13 | Repeat step 12 after restarting the service, without changing config | Replay by `event_id` still resolves the same persisted decision artifact after restart |
+| 14 | Process an event that takes the AI advisory path, then inspect `decisions.attributes_snapshot` | Persisted attributes include AI advisory markers (`aiAdvicePresent`, `aiAdviceStatus`, and related metadata when advice exists) without breaking deterministic replay |
+| 15 | Trigger a reject path (policy or cost guard), then inspect `decisions.reason_code` and `human_readable_reason` | Reject decisions persist explainability fields coherently, not only ACCEPT flows |
+| 16 | Replay a persisted reject decision with unchanged config | Replay stays stable (`driftDetected = false`) and preserves reject-vs-accept semantics for non-happy-path decisions |
 
 ---
 

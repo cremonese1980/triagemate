@@ -35,6 +35,12 @@ public class ReplayController {
         return replayService.replayByDecisionId(decisionId);
     }
 
+    @PostMapping("/by-event/{eventId}")
+    public ReplayResult replayDecisionByEventId(@PathVariable String eventId) {
+        log.info("Replay request for eventId={}", eventId);
+        return replayService.replayByEventId(eventId);
+    }
+
     @PostMapping("/batch")
     public List<ReplayResult> replayBatch(@RequestBody BatchReplayRequest request) {
         log.info("Batch replay request for {} decision(s)", request.decisionIds().size());

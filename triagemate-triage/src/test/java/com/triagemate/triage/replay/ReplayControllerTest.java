@@ -58,6 +58,21 @@ class ReplayControllerTest {
     }
 
     @Test
+    void replayDecisionByEventId_delegatesToService() {
+        String eventId = "evt-001";
+        ReplayResult expected = ReplayResult.compare(
+                UUID.randomUUID(), "ACCEPT", "1.0.0", Map.of(),
+                "ACCEPT", "1.0.0", Map.of()
+        );
+        when(replayService.replayByEventId(eventId)).thenReturn(expected);
+
+        ReplayResult result = controller.replayDecisionByEventId(eventId);
+
+        assertThat(result).isSameAs(expected);
+        verify(replayService).replayByEventId(eventId);
+    }
+
+    @Test
     void handleNotFound_returns404Message() {
         UUID decisionId = UUID.randomUUID();
         var ex = new DecisionNotFoundException(decisionId);
