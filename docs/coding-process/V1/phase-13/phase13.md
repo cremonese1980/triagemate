@@ -791,6 +791,20 @@ void phase9Through12Invariants_stillWork() {
 | 6 | Replay old decision | Drift detected if policy logic changed |
 | 7 | Process new event | Decision persisted with `policy_version = "2.0.0"` |
 | 8 | Compare decisions: `SELECT outcome, policy_version FROM decisions` | Different versions visible |
+| 9 | Replay same event with same policy version | No drift detected (`driftDetected = false`) |
+| 10 | Verify explainability artifacts: `SELECT decision_id, event_id, policy_version, outcome, reason_code, human_readable_reason, input_snapshot, attributes_snapshot FROM decisions` | All non-nullable fields populated, JSONB columns valid |
+| 11 | Cross-check outbox ↔ decision: `SELECT d.event_id, o.event_id FROM decisions d JOIN outbox_events o ON d.event_id = o.event_id` | 1:1 correspondence for each processed event |
+| 12 | Replay by event_id: `curl -X POST localhost:8080/internal/replay/by-event/{eventId}` | Returns comparison JSON matching decision record |
+
+---
+
+### Known Limitations
+
+| Limitation | Impact | Mitigation |
+|---|---|---|
+| **Replay context uses `Instant.now()`** instead of original `occurredAt` | If future policies depend on event timestamp, replay may produce different outcomes than original | Today's policies are time-independent; will be addressed when time-dependent policies are added |
+| **Replay context uses empty metadata** (`Map.of()`) instead of original trace/headers | If future policies depend on trace context or producer metadata, replay loses fidelity | Original envelope metadata is not currently stored; can be added to `input_snapshot` if needed |
+| **Replay bypasses AI layer** (by design) | Replay outcomes reflect only deterministic policy, not AI advisory enrichment | This is intentional per "deterministic-first" architecture; AI advisory is non-deterministic and costly |
 
 ---
 

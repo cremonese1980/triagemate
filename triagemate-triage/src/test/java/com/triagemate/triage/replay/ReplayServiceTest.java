@@ -17,9 +17,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.mockito.ArgumentCaptor;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ReplayServiceTest {
@@ -138,6 +141,43 @@ class ReplayServiceTest {
         ReplayResult result = replayService.replayByDecisionId(DECISION_ID);
 
         assertThat(result.originalAttributes()).isEmpty();
+    }
+
+    @Test
+    void replayUsesReplayEventType() {
+        when(repository.findById(DECISION_ID)).thenReturn(Optional.of(createOriginalRecord("ACCEPT")));
+        when(decisionService.decide(any())).thenReturn(DecisionResult.of(
+                DecisionOutcome.ACCEPT, "ok", Map.of(), ReasonCode.ACCEPTED_BY_DEFAULT, "OK", "1.0.0"
+        ));
+
+        replayService.replayByDecisionId(DECISION_ID);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<DecisionContext<?>> captor = ArgumentCaptor.forClass(DecisionContext.class);
+        verify(decisionService).decide(captor.capture());
+        DecisionContext<?> replayContext = captor.getValue();
+
+        assertThat(replayContext.eventType()).isEqualTo("replay");
+        assertThat(replayContext.eventId()).isEqualTo(EVENT_ID);
+    }
+
+    @Test
+    void replayDeterminism_samePolicySameInput_sameOutput() {
+        DecisionResult fixedResult = DecisionResult.of(
+                DecisionOutcome.ACCEPT, "deterministic",
+                Map.of("decisionId", "d1", "strategy", "rules-v1"),
+                ReasonCode.ACCEPTED_BY_DEFAULT, "All policies passed", "1.0.0"
+        );
+        when(repository.findById(DECISION_ID)).thenReturn(Optional.of(createOriginalRecord("ACCEPT")));
+        when(decisionService.decide(any())).thenReturn(fixedResult);
+
+        ReplayResult first = replayService.replayByDecisionId(DECISION_ID);
+        ReplayResult second = replayService.replayByDecisionId(DECISION_ID);
+
+        assertThat(first.newOutcome()).isEqualTo(second.newOutcome());
+        assertThat(first.newPolicyVersion()).isEqualTo(second.newPolicyVersion());
+        assertThat(first.driftDetected()).isEqualTo(second.driftDetected());
+        assertThat(first.newAttributes()).isEqualTo(second.newAttributes());
     }
 
     private DecisionRecord createOriginalRecord(String outcome) {

@@ -10,12 +10,19 @@ import com.triagemate.triage.persistence.DecisionRecord;
 import com.triagemate.triage.persistence.DecisionRecordRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Replays a stored decision using the current deterministic policy.
+ * <p>
+ * Uses the base {@code decisionService} (not the AI decorator) to ensure
+ * replay outcomes are deterministic and reproducible.
+ */
 @Service
 public class ReplayService {
 
@@ -26,7 +33,7 @@ public class ReplayService {
     private final ObjectMapper objectMapper;
 
     public ReplayService(DecisionRecordRepository repository,
-                         DecisionService decisionService,
+                         @Qualifier("decisionService") DecisionService decisionService,
                          ObjectMapper objectMapper) {
         this.repository = repository;
         this.decisionService = decisionService;

@@ -366,6 +366,47 @@ class AiAdvisedDecisionServiceTest {
         assertFalse(result.attributes().containsKey("aiOverrideApplied"));
     }
 
+    @Test
+    void policyVersionPreserved_whenAiOverrideApplied() {
+        stubDelegate.setPolicyVersion("2.3.1");
+        stubAdvisor.setAdvice(new AiDecisionAdvice(
+                "DEVICE_ERROR", 0.92, "High confidence", true,
+                "test", "model", "v1", "1.0.0", "hash",
+                10, 20, 0.001, 50
+        ));
+
+        DecisionResult result = service.decide(createContext());
+
+        assertEquals("2.3.1", result.policyVersion(),
+                "policyVersion must survive AI override assembly");
+    }
+
+    @Test
+    void policyVersionPreserved_whenAiAdviceRejected() {
+        stubDelegate.setPolicyVersion("3.0.0");
+        stubAdvisor.setAdvice(new AiDecisionAdvice(
+                "DEVICE_ERROR", 0.50, "Low confidence", false,
+                "test", "model", "v1", "1.0.0", "hash",
+                10, 20, 0.001, 50
+        ));
+
+        DecisionResult result = service.decide(createContext());
+
+        assertEquals("3.0.0", result.policyVersion(),
+                "policyVersion must survive when AI advice is rejected");
+    }
+
+    @Test
+    void policyVersionPreserved_whenAiFails() {
+        stubDelegate.setPolicyVersion("4.1.0");
+        stubAdvisor.setThrowException(new TransientAiException("network error"));
+
+        DecisionResult result = service.decide(createContext());
+
+        assertEquals("4.1.0", result.policyVersion(),
+                "policyVersion must survive AI failure fallback");
+    }
+
     private DecisionContext<?> createContext() {
         return DecisionContext.of(
                 "evt-123", "device.telemetry", 1,
@@ -376,12 +417,17 @@ class AiAdvisedDecisionServiceTest {
     // Stubs
 
     static class StubDecisionService implements DecisionService {
+        private String policyVersion = "1.0.0";
+
+        void setPolicyVersion(String policyVersion) { this.policyVersion = policyVersion; }
+
         @Override
         public DecisionResult decide(DecisionContext<?> context) {
             return DecisionResult.of(
                     DecisionOutcome.ACCEPT, "deterministic-test",
                     Map.of("decisionId", "dec-stub-" + context.eventId(), "strategy", "rules-v1"),
-                    ReasonCode.ACCEPTED_BY_DEFAULT, "All policies passed"
+                    ReasonCode.ACCEPTED_BY_DEFAULT, "All policies passed",
+                    policyVersion
             );
         }
     }
