@@ -901,8 +901,8 @@ to:
     - Analyze why outcomes changed
     - Root cause analysis for anomalies
 
-4. **AI Readiness (Phase 14+)**
-    - Historical dataset for ML training
+4. **AI Readiness (Phase 14 — RAG, and beyond)**
+    - Historical dataset for RAG and ML training
     - A/B testing infrastructure ready
     - Model version tracking foundation
 
@@ -972,18 +972,18 @@ to:
 
 Phase 13 is the **governance foundation** for:
 
-- **Phase 14:** AI/ML Integration (requires historical dataset)
-- **Phase 15:** A/B Testing Framework (requires replay capability)
-- **Phase 16:** Advanced Analytics (requires complete audit trail)
+- **Phase 14:** RAG over Decision Memory (requires historical decision dataset)
+- **Phase 16:** A/B Testing Framework (requires replay capability)
+- **Phase 17:** Advanced Analytics (requires complete audit trail)
 
 After Phase 13, TriageMate has:
 - ✅ Durable idempotency (Phase 9.2)
 - ✅ Transactional outbox (Phase 10)
-- ✅ Circuit breakers (Phase 11)
-- ✅ Horizontal scalability (Phase 12)
+- ✅ Observability & operational hardening (Phase 11)
+- ✅ AI decision support (Phase 12)
 - ✅ Decision versioning & replay (Phase 13)
 
-**This is enterprise-grade governance & auditability.**
+**Next:** Phase 14 adds RAG over decision memory to complete V1.0.
 
 ---
 
