@@ -120,7 +120,7 @@ class Phase13VerificationIT extends KafkaIntegrationTestBase {
                             "select count(*) from outbox_events where aggregate_id = ? and status = ?",
                             Integer.class,
                             decision.getDecisionId().toString(),
-                            OutboxStatus.SENT.name()
+                            OutboxStatus.PUBLISHED.name()
                     );
 
                     assertThat(processedCount).isEqualTo(1);
@@ -154,8 +154,10 @@ class Phase13VerificationIT extends KafkaIntegrationTestBase {
         assertThat(decision.getAttributesSnapshot()).isNotBlank();
         assertThat(decision.getCreatedAt()).isNotNull();
 
-        Map<?, ?> inputSnapshot = objectMapper.readValue(decision.getInputSnapshot(), Map.class);
-        Map<?, ?> attributesSnapshot = objectMapper.readValue(decision.getAttributesSnapshot(), Map.class);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> inputSnapshot = objectMapper.readValue(decision.getInputSnapshot(), Map.class);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> attributesSnapshot = objectMapper.readValue(decision.getAttributesSnapshot(), Map.class);
 
         assertThat(inputSnapshot).containsEntry("inputId", "input-audit-001");
         assertThat(attributesSnapshot).containsEntry("strategy", "rules-v1");
