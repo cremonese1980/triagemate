@@ -39,7 +39,7 @@ public class AiAdvisoryConfig {
     @Bean
     @Primary
     public DecisionService aiAdvisedDecisionService(
-            DecisionService decisionService,
+            @Qualifier("deterministicDecisionService") DecisionService decisionService,
             AiDecisionAdvisor aiDecisionAdvisor,
             AiAdviceValidator adviceValidator,
             AiAuditService auditService,

@@ -806,6 +806,17 @@ void phase9Through12Invariants_stillWork() {
 | **Replay context uses empty metadata** (`Map.of()`) instead of original trace/headers | If future policies depend on trace context or producer metadata, replay loses fidelity | Original envelope metadata is not currently stored; can be added to `input_snapshot` if needed |
 | **Replay bypasses AI layer** (by design) | Replay outcomes reflect only deterministic policy, not AI advisory enrichment | This is intentional per "deterministic-first" architecture; AI advisory is non-deterministic and costly |
 
+### Manual Verification Checklist — Extension
+
+> Keep the original 8 steps unchanged. Add these checks to cover replay determinism, artifact completeness, and backward compatibility.
+
+| Step | Command | Expected Result |
+|------|---------|-----------------|
+| 9 | Replay the same decision again without changing policy/config | `driftDetected = false` and the replay outcome matches the persisted outcome |
+| 10 | Check DB: `SELECT reason_code, human_readable_reason, input_snapshot, attributes_snapshot FROM decisions WHERE decision_id = '{decisionId}'` | All explainability artifacts are populated and readable |
+| 11 | Check outbox: `SELECT aggregate_id, status, payload FROM outbox_events WHERE aggregate_id = '{decisionId}'` | One outbox row exists, status is `SENT`, and payload contains the same `policyVersion` persisted in `decisions` |
+| 12 | Replay by original `event_id` via service/API path used in the environment | The same decision can be reloaded from `event_id`, not only from `decision_id` |
+
 ---
 
 ## 🅓 Done Criteria

@@ -33,7 +33,7 @@ public class ReplayService {
     private final ObjectMapper objectMapper;
 
     public ReplayService(DecisionRecordRepository repository,
-                         @Qualifier("decisionService") DecisionService decisionService,
+                         @Qualifier("deterministicDecisionService") DecisionService decisionService,
                          ObjectMapper objectMapper) {
         this.repository = repository;
         this.decisionService = decisionService;
