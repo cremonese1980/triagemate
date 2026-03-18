@@ -112,4 +112,22 @@ class ReplayControllerTest {
 
         assertThat(request.decisionIds()).isEmpty();
     }
+
+    @Test
+    void replayDecisionByEventId_whenNotFound_returns404() {
+        String eventId = "evt-missing";
+        var ex = new DecisionNotFoundException(eventId);
+        when(replayService.replayByEventId(eventId)).thenThrow(ex);
+
+        DecisionNotFoundException thrown = org.junit.jupiter.api.Assertions.assertThrows(
+                DecisionNotFoundException.class,
+                () -> controller.replayDecisionByEventId(eventId)
+        );
+
+        Map<String, String> response = controller.handleNotFound(thrown);
+
+        assertThat(response).containsEntry("error", ex.getMessage());
+        verify(replayService).replayByEventId(eventId);
+    }
+
 }
