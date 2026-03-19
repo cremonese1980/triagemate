@@ -181,11 +181,13 @@ public class AiAdvisedDecisionService implements DecisionService {
             enrichedAttributes.put("aiConfidence", validated.advice().confidence());
             enrichedAttributes.put("aiModelVersion", validated.advice().modelVersion());
             enrichedAttributes.put("aiPromptVersion", validated.advice().promptVersion());
+            enrichedAttributes.put("aiSuggestedClassification", validated.advice().suggestedClassification());
         }
 
         if (validated.isAccepted()) {
             enrichedAttributes.put("aiOverrideApplied", true);
             enrichedAttributes.put("originalOutcome", deterministicResult.outcome().name());
+            enrichedAttributes.put("strategy", "ai-override");
             return DecisionResult.of(
                     deterministicResult.outcome(),
                     validated.advice().suggestedClassification(),

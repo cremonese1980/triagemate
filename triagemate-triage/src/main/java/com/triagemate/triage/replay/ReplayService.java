@@ -6,6 +6,7 @@ import com.triagemate.contracts.events.v1.InputReceivedV1;
 import com.triagemate.triage.control.decision.DecisionContext;
 import com.triagemate.triage.control.decision.DecisionResult;
 import com.triagemate.triage.control.decision.DecisionService;
+import com.triagemate.triage.observability.DecisionMetrics;
 import com.triagemate.triage.persistence.DecisionRecord;
 import com.triagemate.triage.persistence.DecisionRecordRepository;
 import org.slf4j.Logger;
@@ -14,6 +15,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -31,13 +33,16 @@ public class ReplayService {
     private final DecisionRecordRepository repository;
     private final DecisionService decisionService;
     private final ObjectMapper objectMapper;
+    private final DecisionMetrics decisionMetrics;
 
     public ReplayService(DecisionRecordRepository repository,
                          @Qualifier("deterministicDecisionService") DecisionService decisionService,
-                         ObjectMapper objectMapper) {
+                         ObjectMapper objectMapper,
+                         DecisionMetrics decisionMetrics) {
         this.repository = repository;
         this.decisionService = decisionService;
         this.objectMapper = objectMapper;
+        this.decisionMetrics = decisionMetrics;
     }
 
     public ReplayResult replayByDecisionId(UUID decisionId) {
@@ -67,14 +72,15 @@ public class ReplayService {
                 input
         );
 
-        DecisionResult newDecision = decisionService.decide(context);
+        DecisionResult newDecision = decisionMetrics.timeDecision(() -> decisionService.decide(context));
 
         Map<String, Object> originalAttributes = deserializeAttributes(original.getAttributesSnapshot());
+        Map<String, Object> replayAttributes = mergeReplayAttributes(originalAttributes, newDecision.attributes());
 
         return ReplayResult.compare(
                 original.getDecisionId(),
                 original.getOutcome(), original.getPolicyVersion(), originalAttributes,
-                newDecision.outcome().name(), newDecision.policyVersion(), newDecision.attributes()
+                newDecision.outcome().name(), newDecision.policyVersion(), replayAttributes
         );
     }
 
@@ -98,5 +104,16 @@ public class ReplayService {
             log.warn("Failed to deserialize attributes snapshot, returning empty map", e);
             return Map.of();
         }
+    }
+
+    private Map<String, Object> mergeReplayAttributes(Map<String, Object> originalAttributes,
+                                                      Map<String, Object> replayedAttributes) {
+        Map<String, Object> merged = new LinkedHashMap<>(originalAttributes);
+        replayedAttributes.forEach((key, value) -> {
+            if (!"decisionId".equals(key)) {
+                merged.put(key, value);
+            }
+        });
+        return Map.copyOf(merged);
     }
 }

@@ -17,6 +17,8 @@ public record ReplayResult(
         boolean driftDetected,
         List<String> attributeDifferences
 ) {
+    private static final String DECISION_ID_KEY = "decisionId";
+
     public ReplayResult {
         originalAttributes = originalAttributes == null ? Map.of() : Map.copyOf(originalAttributes);
         newAttributes = newAttributes == null ? Map.of() : Map.copyOf(newAttributes);
@@ -28,10 +30,12 @@ public record ReplayResult(
             String originalOutcome, String originalPolicyVersion, Map<String, Object> originalAttributes,
             String newOutcome, String newPolicyVersion, Map<String, Object> newAttributes
     ) {
-        boolean driftDetected = !Objects.equals(originalOutcome, newOutcome);
         Map<String, Object> safeOriginal = originalAttributes == null ? Map.of() : originalAttributes;
         Map<String, Object> safeNew = newAttributes == null ? Map.of() : newAttributes;
         List<String> differences = computeDifferences(safeOriginal, safeNew);
+        boolean driftDetected = !Objects.equals(originalOutcome, newOutcome)
+                || !Objects.equals(originalPolicyVersion, newPolicyVersion)
+                || !differences.isEmpty();
 
         return new ReplayResult(
                 originalDecisionId,
@@ -48,6 +52,9 @@ public record ReplayResult(
 
         for (Map.Entry<String, Object> entry : original.entrySet()) {
             String key = entry.getKey();
+            if (DECISION_ID_KEY.equals(key)) {
+                continue;
+            }
             if (!current.containsKey(key)) {
                 diffs.add("removed: " + key);
             } else if (!Objects.equals(entry.getValue(), current.get(key))) {
@@ -55,6 +62,9 @@ public record ReplayResult(
             }
         }
         for (String key : current.keySet()) {
+            if (DECISION_ID_KEY.equals(key)) {
+                continue;
+            }
             if (!original.containsKey(key)) {
                 diffs.add("added: " + key);
             }
