@@ -181,17 +181,20 @@ public class AiAdvisedDecisionService implements DecisionService {
             enrichedAttributes.put("aiConfidence", validated.advice().confidence());
             enrichedAttributes.put("aiModelVersion", validated.advice().modelVersion());
             enrichedAttributes.put("aiPromptVersion", validated.advice().promptVersion());
+            enrichedAttributes.put("aiSuggestedClassification", validated.advice().suggestedClassification());
         }
 
         if (validated.isAccepted()) {
             enrichedAttributes.put("aiOverrideApplied", true);
             enrichedAttributes.put("originalOutcome", deterministicResult.outcome().name());
+            enrichedAttributes.put("strategy", "ai-override");
             return DecisionResult.of(
                     deterministicResult.outcome(),
                     validated.advice().suggestedClassification(),
                     enrichedAttributes,
                     deterministicResult.reasonCode(),
-                    "AI override: " + validated.advice().reasoning()
+                    "AI override: " + validated.advice().reasoning(),
+                    deterministicResult.policyVersion()
             );
         }
 
@@ -200,7 +203,8 @@ public class AiAdvisedDecisionService implements DecisionService {
                 deterministicResult.reason(),
                 enrichedAttributes,
                 deterministicResult.reasonCode(),
-                deterministicResult.humanReadableReason()
+                deterministicResult.humanReadableReason(),
+                deterministicResult.policyVersion()
         );
     }
 }

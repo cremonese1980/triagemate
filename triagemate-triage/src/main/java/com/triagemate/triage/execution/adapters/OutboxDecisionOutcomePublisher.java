@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -47,6 +48,7 @@ public class OutboxDecisionOutcomePublisher implements DecisionOutcomePublisher 
 
         String decisionEventId = UUID.randomUUID().toString();
         String inputId = extractInputId(context.payload());
+        String aggregateDecisionId = extractDecisionId(result, decisionEventId);
 
         var payload = new DecisionMadeV1(
                 decisionEventId,
@@ -57,6 +59,14 @@ public class OutboxDecisionOutcomePublisher implements DecisionOutcomePublisher 
                 List.of("review-decision-trace"),
                 new DecisionMadeV1.Motivation("rules", List.of(result.reason()))
         );
+
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("decisionId", aggregateDecisionId);
+        metadata.put("decisionOutcome", result.outcome().name());
+        metadata.put("sourceEventId", context.eventId());
+        if (result.policyVersion() != null && !result.policyVersion().isBlank()) {
+            metadata.put("policyVersion", result.policyVersion());
+        }
 
         var envelope = new EventEnvelope<>(
                 decisionEventId,
@@ -70,10 +80,7 @@ public class OutboxDecisionOutcomePublisher implements DecisionOutcomePublisher 
                         context.eventId()
                 ),
                 payload,
-                Map.of(
-                        "decisionOutcome", result.outcome().name(),
-                        "sourceEventId", context.eventId()
-                )
+                Map.copyOf(metadata)
         );
 
         try {
@@ -82,7 +89,7 @@ public class OutboxDecisionOutcomePublisher implements DecisionOutcomePublisher 
             OutboxEvent event = new OutboxEvent(
                     UUID.randomUUID(),
                     topic,                 // V1: aggregateType stores the Kafka topic name
-                    inputId,               // aggregateId used as Kafka message key
+                    aggregateDecisionId,   // aggregateId tracks the persisted decision artifact
                     DECISION_EVENT_TYPE,   // eventType
                     json,                  // payload
                     OutboxStatus.PENDING,             // status
@@ -101,6 +108,14 @@ public class OutboxDecisionOutcomePublisher implements DecisionOutcomePublisher 
             return input.inputId();
         }
         return "unknown-input-id";
+    }
+
+    private String extractDecisionId(DecisionResult result, String fallbackDecisionEventId) {
+        Object raw = result.attributes().get("decisionId");
+        if (raw instanceof String decisionId && !decisionId.isBlank()) {
+            return decisionId;
+        }
+        return fallbackDecisionEventId;
     }
 
     private String outcomeToPriority(DecisionResult result) {

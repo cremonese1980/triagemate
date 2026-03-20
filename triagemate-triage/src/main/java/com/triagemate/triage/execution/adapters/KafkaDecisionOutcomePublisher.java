@@ -12,6 +12,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -42,6 +43,7 @@ public class KafkaDecisionOutcomePublisher implements DecisionOutcomePublisher {
     public void publish(DecisionResult result, DecisionContext<?> context) {
         String decisionEventId = UUID.randomUUID().toString();
         String inputId = extractInputId(context.payload());
+        String aggregateDecisionId = extractDecisionId(result, decisionEventId);
 
         var payload = new DecisionMadeV1(
                 decisionEventId,
@@ -52,6 +54,14 @@ public class KafkaDecisionOutcomePublisher implements DecisionOutcomePublisher {
                 List.of("review-decision-trace"),
                 new DecisionMadeV1.Motivation("rules", List.of(result.reason()))
         );
+
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("decisionId", aggregateDecisionId);
+        metadata.put("decisionOutcome", result.outcome().name());
+        metadata.put("sourceEventId", context.eventId());
+        if (result.policyVersion() != null && !result.policyVersion().isBlank()) {
+            metadata.put("policyVersion", result.policyVersion());
+        }
 
         var envelope = new EventEnvelope<>(
                 decisionEventId,
@@ -65,14 +75,11 @@ public class KafkaDecisionOutcomePublisher implements DecisionOutcomePublisher {
                         context.eventId()
                 ),
                 payload,
-                Map.of(
-                        "decisionOutcome", result.outcome().name(),
-                        "sourceEventId", context.eventId()
-                )
+                Map.copyOf(metadata)
         );
 
         try {
-            kafkaTemplate.send(topic, inputId, envelope).get();
+            kafkaTemplate.send(topic, aggregateDecisionId, envelope).get();
         } catch (Exception e) {
             throw new RuntimeException("Failed to publish DecisionMadeV1 to topic " + topic, e);
         }
@@ -83,6 +90,14 @@ public class KafkaDecisionOutcomePublisher implements DecisionOutcomePublisher {
             return inputReceivedV1.inputId();
         }
         return "unknown-input-id";
+    }
+
+    private String extractDecisionId(DecisionResult result, String fallbackDecisionEventId) {
+        Object raw = result.attributes().get("decisionId");
+        if (raw instanceof String decisionId && !decisionId.isBlank()) {
+            return decisionId;
+        }
+        return fallbackDecisionEventId;
     }
 
     private String outcomeToPriority(DecisionResult result) {

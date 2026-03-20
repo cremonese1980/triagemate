@@ -362,6 +362,9 @@ Working AI advisory pipeline with one provider, full auditability, deterministic
 
 Historical context enrichment and provider flexibility.
 
+> **Note:** The RAG scope (12B.1) has been promoted to a standalone **Phase 14** in V1.
+> Multi-provider support (12B.2) remains in 12B for V2 implementation.
+
 **Key deliverables:**
 - Curated Decision Explanation dataset (not raw events)
 - Embedding pipeline + embedding cache
@@ -433,39 +436,76 @@ Make decisions auditable, versioned, and replayable for governance.
 
 Governance-grade decision engine with replay capability.
 
+**🟡 Status: IN PROGRESS**
+
+---
+
+## PHASE 14 — RAG over Decision Memory
+
+### Objective
+
+Enrich AI advisory with historical context through Retrieval-Augmented Generation (RAG) over curated decision explanations.
+
+This phase transforms AI suggestions from stateless reasoning into **context-aware reasoning** grounded in real historical decisions.
+
+> **Origin:** Promoted from Phase 12B.1. Multi-provider support (12B.2) remains in V2.
+
+### Concepts
+
+- **Curated Decision Explanation dataset** (not raw events — less noise, better semantics)
+- **Embedding pipeline** with Spring AI integration
+- **Embedding cache** (SHA-256 hash-based dedup)
+- **PostgreSQL pgvector** for vector storage (operational simplicity, one DB)
+- **Retrieval service** with policy-lineage filtering (prevents obsolete policy contamination)
+- **Context injection** into AI prompts (bounded token budget, top-k = 3)
+- **Embedding re-indexing lifecycle** (model change triggers background re-embedding)
+
+### Key Design Decisions
+
+- **Curated, not raw:** RAG operates on curated decision explanations, not raw events — better semantic quality, lower embedding waste, cleaner governance
+- **pgvector, not a separate vector DB:** Operational simplicity for V1 scale (< 100K decisions)
+- **Policy-lineage aware retrieval:** Decisions from obsolete policies are excluded to prevent semantic conflicts with the deterministic pipeline
+
+### Outcome
+
+AI advisory enriched with relevant historical context. Graceful degradation when RAG is unavailable.
+
 **Closes V1.0 scope.**
 
 **⏭ Status: Planned**
+
+> Detailed spec: `docs/coding-process/V1/phase-14/phase14.md`
 
 ---
 
 # 🎯 TRIAGEMATE V1.0 COMPLETION POINT
 
-**TriageMate V1.0 is considered complete at the end of Phase 13.**
+**TriageMate V1.0 is considered complete at the end of Phase 14.**
 
 At that point the system guarantees:
 
-✅ **Durable idempotency** (Phase 9.2)  
-✅ **Transactional consistency** (Phase 10 — Outbox pattern)  
-✅ **Production-grade observability** (Phase 11)  
-✅ **AI-powered decision support** (Phase 12 — Core identity)  
+✅ **Durable idempotency** (Phase 9.2)
+✅ **Transactional consistency** (Phase 10 — Outbox pattern)
+✅ **Production-grade observability** (Phase 11)
+✅ **AI-powered decision support** (Phase 12 — Core identity)
 ✅ **Decision versioning & replay** (Phase 13 — Governance)
+✅ **RAG over decision memory** (Phase 14 — Context-aware AI)
 
 **V1.0 is production-ready for:**
 - Single-region deployment
 - Moderate load (thousands of decisions/day)
 - Governance & audit requirements
-- AI-assisted intelligent routing
+- AI-assisted intelligent routing with historical context
 
 ---
 
 # 🚀 TRIAGEMATE V2.0 (FUTURE)
 
-**Phases 14–18 extend the system into a full distributed governance platform.**
+**Phases 15–19 extend the system into a full distributed governance platform.**
 
 ---
 
-## PHASE 14 — Horizontal Scalability & Concurrency Control (HARDCORE)
+## PHASE 15 — Horizontal Scalability & Concurrency Control (HARDCORE)
 
 ### Objective
 
@@ -488,7 +528,7 @@ System scales horizontally to **tens of thousands of decisions/day** with correc
 
 ---
 
-## PHASE 15 — Policy Engine Isolation & Versioned Rule Sets
+## PHASE 16 — Policy Engine Isolation & Versioned Rule Sets
 
 ### Objective
 
@@ -509,7 +549,7 @@ Non-developers can author and test policies.
 
 ---
 
-## PHASE 16 — Multi-Tenant Governance
+## PHASE 17 — Multi-Tenant Governance
 
 ### Objective
 
@@ -530,7 +570,7 @@ SaaS-ready TriageMate.
 
 ---
 
-## PHASE 17 — Tamper-Proof Audit Ledger
+## PHASE 18 — Tamper-Proof Audit Ledger
 
 ### Objective
 
@@ -551,7 +591,7 @@ Regulatory-grade audit trail.
 
 ---
 
-## PHASE 18 — Decision Simulation Sandbox
+## PHASE 19 — Decision Simulation Sandbox
 
 ### Objective
 
@@ -593,7 +633,7 @@ AI-driven message triage for SMEs.
 2. Learning depth > speed
 3. Refactors are intentional
 4. **This file is the single source of truth**
-5. **V1.0 scope is frozen at Phase 13**
+5. **V1.0 scope is frozen at Phase 14**
 6. **V2.0 phases are aspirational, not committed**
 
 ---
@@ -609,7 +649,7 @@ AI-driven message triage for SMEs.
 
 ---
 
-**Document Version:** 2.0  
-**Last Updated:** 2026-03-05
-**V1.0 Target Completion:** Phase 13
-**Next Review:** After Phase 11 completion
+**Document Version:** 3.0
+**Last Updated:** 2026-03-18
+**V1.0 Target Completion:** Phase 14
+**Next Review:** After Phase 14 completion

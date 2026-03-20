@@ -60,6 +60,9 @@ logging:
     org.hibernate.validator: WARN
 
 triagemate:
+  policy:
+    version: "1.0.0"
+
   ai:
     enabled: ${AI_ENABLED:false}
     provider: ${AI_PROVIDER:anthropic}

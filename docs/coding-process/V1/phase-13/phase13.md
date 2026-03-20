@@ -791,6 +791,35 @@ void phase9Through12Invariants_stillWork() {
 | 6 | Replay old decision | Drift detected if policy logic changed |
 | 7 | Process new event | Decision persisted with `policy_version = "2.0.0"` |
 | 8 | Compare decisions: `SELECT outcome, policy_version FROM decisions` | Different versions visible |
+| 9 | Replay same event with same policy version | No drift detected (`driftDetected = false`) |
+| 10 | Verify explainability artifacts: `SELECT decision_id, event_id, policy_version, outcome, reason_code, human_readable_reason, input_snapshot, attributes_snapshot FROM decisions` | All non-nullable fields populated, JSONB columns valid |
+| 11 | Cross-check outbox ↔ decision: `SELECT d.decision_id, o.aggregate_id FROM decisions d JOIN outbox_events o ON d.decision_id::text = o.aggregate_id` | 1:1 correspondence for each processed event |
+| 12 | Replay by event_id: `curl -X POST localhost:8080/internal/replay/by-event/{eventId}` | Returns comparison JSON matching decision record |
+
+---
+
+### Known Limitations
+
+> Current implementation note: Phase 13 delivers deterministic policy replay and persisted decision artifacts, but it is not yet a full historical runtime replay engine.
+
+| Limitation | Impact | Mitigation |
+|---|---|---|
+| **Replay runs deterministic policy only** (AI advisory is intentionally excluded) | Replay answers “what would deterministic policy do now with this persisted input?” rather than reproducing the exact historical runtime path when AI participated | Keep this semantics explicit in docs and APIs; consider optional full-runtime replay only if governance value justifies the extra audit footprint |
+| **Policy versioning is provider-based, not registry-based** | `policyVersion` is persisted and compared, but there is no `version -> policy implementation` lookup that guarantees re-execution of the exact historical rule set | Accept for V1 governance/showcase; add a `PolicyRegistry` in a future phase when versioned executable policies become necessary |
+| **Replay context reuses persisted decision timestamp, not original envelope timestamp/metadata** | Safer than `Instant.now()` for determinism, but not a perfect reconstruction if future policies depend on producer trace metadata or original envelope timestamps | Persist the full envelope snapshot if replay fidelity must become audit-grade at the context level |
+| **Drift detection follows business semantics, not full forensic semantics** | Drift ignores AI/strategy-only attribute differences and focuses on outcome, policy version, and non-ignored business attributes | Keep current boolean drift for V1; add stronger diff policies later if audit requirements tighten |
+| **Replay context uses empty metadata** (`Map.of()`) instead of original trace/headers | If future policies depend on trace context or producer metadata, replay loses fidelity | Original envelope metadata is not currently stored; can be added to `input_snapshot` if needed |
+
+### Manual Verification Checklist — Extension
+
+> Steps 13–16 extend the original 12-step checklist above. They cover replay restart safety, AI artifact persistence, reject-path explainability, and reject replay stability.
+
+| Step | Command | Expected Result |
+|------|---------|-----------------|
+| 13 | Repeat step 12 after restarting the service, without changing config | Replay by `event_id` still resolves the same persisted decision artifact after restart |
+| 14 | Process an event that takes the AI advisory path, then inspect `decisions.attributes_snapshot` | Persisted attributes include AI advisory markers (`aiAdvicePresent`, `aiAdviceStatus`, and related metadata when advice exists) without breaking deterministic replay |
+| 15 | Trigger a reject path (policy or cost guard), then inspect `decisions.reason_code` and `human_readable_reason` | Reject decisions persist explainability fields coherently, not only ACCEPT flows |
+| 16 | Replay a persisted reject decision with unchanged config | Replay stays stable (`driftDetected = false`) and preserves reject-vs-accept semantics for non-happy-path decisions |
 
 ---
 
@@ -901,8 +930,8 @@ to:
     - Analyze why outcomes changed
     - Root cause analysis for anomalies
 
-4. **AI Readiness (Phase 14+)**
-    - Historical dataset for ML training
+4. **AI Readiness (Phase 14 — RAG, and beyond)**
+    - Historical dataset for RAG and ML training
     - A/B testing infrastructure ready
     - Model version tracking foundation
 
@@ -972,18 +1001,18 @@ to:
 
 Phase 13 is the **governance foundation** for:
 
-- **Phase 14:** AI/ML Integration (requires historical dataset)
-- **Phase 15:** A/B Testing Framework (requires replay capability)
-- **Phase 16:** Advanced Analytics (requires complete audit trail)
+- **Phase 14:** RAG over Decision Memory (requires historical decision dataset)
+- **Phase 16:** A/B Testing Framework (requires replay capability)
+- **Phase 17:** Advanced Analytics (requires complete audit trail)
 
 After Phase 13, TriageMate has:
 - ✅ Durable idempotency (Phase 9.2)
 - ✅ Transactional outbox (Phase 10)
-- ✅ Circuit breakers (Phase 11)
-- ✅ Horizontal scalability (Phase 12)
+- ✅ Observability & operational hardening (Phase 11)
+- ✅ AI decision support (Phase 12)
 - ✅ Decision versioning & replay (Phase 13)
 
-**This is enterprise-grade governance & auditability.**
+**Next:** Phase 14 adds RAG over decision memory to complete V1.0.
 
 ---
 
