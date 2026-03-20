@@ -89,8 +89,8 @@ CREATE TABLE decision_explanations (
     content_hash            VARCHAR(64) NOT NULL,
     quality_score           DOUBLE PRECISION DEFAULT 0.5,
     curated_by              VARCHAR(50) DEFAULT 'system',
-    created_at              TIMESTAMP NOT NULL DEFAULT NOW(),
-    archived_at             TIMESTAMP
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    archived_at             TIMESTAMPTZ
 );
 
 CREATE INDEX idx_explanations_classification ON decision_explanations(classification);

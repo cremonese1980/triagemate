@@ -4,8 +4,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.embedding.EmbeddingModel;
 
-import java.util.List;
-
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -23,7 +21,7 @@ class SpringAiEmbeddingServiceTest {
     @Test
     void generatesEmbedding() {
         when(embeddingModel.embed("test text"))
-                .thenReturn(List.of(0.1, 0.2, 0.3));
+                .thenReturn(new float[]{0.1f, 0.2f, 0.3f});
 
         float[] result = service.generateEmbedding("test text");
 
