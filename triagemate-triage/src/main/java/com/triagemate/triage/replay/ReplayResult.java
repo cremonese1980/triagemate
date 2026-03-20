@@ -52,7 +52,17 @@ public record ReplayResult(
 
 
     private static boolean isIgnorableDifference(String diff) {
-        return DRIFT_IGNORED_ATTRIBUTE_PREFIXES.stream().anyMatch(diff::contains);
+        String key = extractKey(diff);
+        return DRIFT_IGNORED_ATTRIBUTE_PREFIXES.stream().anyMatch(key::startsWith);
+    }
+
+    private static String extractKey(String diff) {
+        // diff format: "changed: KEY [old -> new]", "removed: KEY", "added: KEY"
+        int colonSpace = diff.indexOf(": ");
+        if (colonSpace < 0) return diff;
+        String rest = diff.substring(colonSpace + 2);
+        int space = rest.indexOf(' ');
+        return space < 0 ? rest : rest.substring(0, space);
     }
 
     private static List<String> computeDifferences(

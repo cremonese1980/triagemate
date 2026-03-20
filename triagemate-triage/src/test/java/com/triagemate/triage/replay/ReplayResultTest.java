@@ -49,6 +49,19 @@ class ReplayResultTest {
     }
 
     @Test
+    void compare_detectsDriftWhenKeyContainsIgnoredSubstring() {
+        // "paid" contains "ai" but is NOT an AI attribute — must still trigger drift
+        ReplayResult result = ReplayResult.compare(
+                UUID.randomUUID(),
+                "ACCEPT", "1.0.0", Map.of("decisionId", "old", "paid", false),
+                "ACCEPT", "1.0.0", Map.of("decisionId", "new", "paid", true)
+        );
+
+        assertThat(result.driftDetected()).isTrue();
+        assertThat(result.attributeDifferences()).hasSize(1);
+    }
+
+    @Test
     void compare_detectsDriftWhenMeaningfulAttributesChange() {
         ReplayResult result = ReplayResult.compare(
                 UUID.randomUUID(),

@@ -809,7 +809,6 @@ void phase9Through12Invariants_stillWork() {
 | **Replay context reuses persisted decision timestamp, not original envelope timestamp/metadata** | Safer than `Instant.now()` for determinism, but not a perfect reconstruction if future policies depend on producer trace metadata or original envelope timestamps | Persist the full envelope snapshot if replay fidelity must become audit-grade at the context level |
 | **Drift detection follows business semantics, not full forensic semantics** | Drift ignores AI/strategy-only attribute differences and focuses on outcome, policy version, and non-ignored business attributes | Keep current boolean drift for V1; add stronger diff policies later if audit requirements tighten |
 | **Replay context uses empty metadata** (`Map.of()`) instead of original trace/headers | If future policies depend on trace context or producer metadata, replay loses fidelity | Original envelope metadata is not currently stored; can be added to `input_snapshot` if needed |
-| **Replay bypasses AI layer** (by design) | Replay outcomes reflect only deterministic policy, not AI advisory enrichment | This is intentional per "deterministic-first" architecture; AI advisory is non-deterministic and costly |
 
 ### Manual Verification Checklist — Extension
 
