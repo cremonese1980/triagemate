@@ -1,0 +1,118 @@
+package com.triagemate.triage.replay;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.triagemate.contracts.events.v1.InputReceivedV1;
+import com.triagemate.triage.control.decision.DecisionContext;
+import com.triagemate.triage.control.decision.DecisionResult;
+import com.triagemate.triage.control.decision.DecisionService;
+import com.triagemate.triage.observability.DecisionMetrics;
+import com.triagemate.triage.persistence.DecisionRecord;
+import com.triagemate.triage.persistence.DecisionRecordRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Service;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * Replays a stored decision using the current deterministic policy.
+ * <p>
+ * Uses the base {@code decisionService} (not the AI decorator) to ensure
+ * replay outcomes are deterministic and reproducible.
+ */
+@Service
+public class ReplayService {
+
+    private static final Logger log = LoggerFactory.getLogger(ReplayService.class);
+
+    private final DecisionRecordRepository repository;
+    private final DecisionService decisionService;
+    private final ObjectMapper objectMapper;
+    private final DecisionMetrics decisionMetrics;
+
+    public ReplayService(DecisionRecordRepository repository,
+                         @Qualifier("deterministicDecisionService") DecisionService decisionService,
+                         ObjectMapper objectMapper,
+                         DecisionMetrics decisionMetrics) {
+        this.repository = repository;
+        this.decisionService = decisionService;
+        this.objectMapper = objectMapper;
+        this.decisionMetrics = decisionMetrics;
+    }
+
+    public ReplayResult replayByDecisionId(UUID decisionId) {
+        DecisionRecord original = repository.findById(decisionId)
+                .orElseThrow(() -> new DecisionNotFoundException(decisionId));
+        return replay(original);
+    }
+
+    public ReplayResult replayByEventId(String eventId) {
+        DecisionRecord original = repository.findByEventId(eventId)
+                .orElseThrow(() -> new DecisionNotFoundException(eventId));
+        return replay(original);
+    }
+
+    private ReplayResult replay(DecisionRecord original) {
+        log.info("Replaying decision decisionId={} eventId={} originalPolicyVersion={}",
+                original.getDecisionId(), original.getEventId(), original.getPolicyVersion());
+
+        InputReceivedV1 input = deserializeInput(original.getInputSnapshot());
+
+        DecisionContext<InputReceivedV1> context = DecisionContext.of(
+                original.getEventId(),
+                "replay",
+                1,
+                original.getCreatedAt(),
+                Map.of(),
+                input
+        );
+
+        DecisionResult newDecision = decisionMetrics.timeDecision(() -> decisionService.decide(context));
+
+        Map<String, Object> originalAttributes = deserializeAttributes(original.getAttributesSnapshot());
+        Map<String, Object> replayAttributes = mergeReplayAttributes(originalAttributes, newDecision.attributes());
+
+        return ReplayResult.compare(
+                original.getDecisionId(),
+                original.getOutcome(), original.getPolicyVersion(), originalAttributes,
+                newDecision.outcome().name(), newDecision.policyVersion(), replayAttributes
+        );
+    }
+
+    // Input snapshot is critical for replay — deserialization failure is fatal
+    private InputReceivedV1 deserializeInput(String json) {
+        try {
+            return objectMapper.readValue(json, InputReceivedV1.class);
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to deserialize input snapshot", e);
+        }
+    }
+
+    // Attributes are accessory context — deserialization failure is graceful (empty map)
+    private Map<String, Object> deserializeAttributes(String json) {
+        if (json == null || json.isBlank()) {
+            return Map.of();
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<>() {});
+        } catch (Exception e) {
+            log.warn("Failed to deserialize attributes snapshot, returning empty map", e);
+            return Map.of();
+        }
+    }
+
+    private Map<String, Object> mergeReplayAttributes(Map<String, Object> originalAttributes,
+                                                      Map<String, Object> replayedAttributes) {
+        Map<String, Object> merged = new LinkedHashMap<>(originalAttributes);
+        replayedAttributes.forEach((key, value) -> {
+            if (!"decisionId".equals(key)) {
+                merged.put(key, value);
+            }
+        });
+        return Map.copyOf(merged);
+    }
+}

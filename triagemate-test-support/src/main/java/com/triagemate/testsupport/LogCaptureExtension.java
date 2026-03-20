@@ -8,6 +8,7 @@ import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -66,7 +67,12 @@ public class LogCaptureExtension implements BeforeEachCallback, AfterEachCallbac
         return listAppender.list.stream()
                 .filter(e -> {
                     Map<String, String> mdc = e.getMDCPropertyMap();
-                    return mdc != null && value.equals(mdc.get(key));
+                    if (mdc == null) {
+                        return false;
+                    }
+                    // Defensive copy: MDC map may be concurrently modified by Kafka consumer threads
+                    Map<String, String> snapshot = new HashMap<>(mdc);
+                    return value.equals(snapshot.get(key));
                 })
                 .toList();
     }

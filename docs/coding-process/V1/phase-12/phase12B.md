@@ -1,5 +1,9 @@
 # PHASE 12B — RAG + Multi-Provider
 
+> **⚠️ Scope Update (2026-03-18):** The RAG scope (12B.1) has been promoted to a
+> standalone **Phase 14** in V1. See `docs/coding-process/V1/phase-14/phase14.md`.
+> Multi-provider support (12B.2) remains in this document for V2 implementation.
+
 ## State Marker
 
 ```yaml

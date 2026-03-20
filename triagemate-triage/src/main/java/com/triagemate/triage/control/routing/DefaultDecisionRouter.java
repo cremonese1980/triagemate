@@ -4,6 +4,7 @@ import com.triagemate.triage.control.decision.DecisionContext;
 import com.triagemate.triage.control.decision.DecisionOutcome;
 import com.triagemate.triage.control.decision.DecisionResult;
 import com.triagemate.triage.exception.RetryableDecisionException;
+import com.triagemate.triage.persistence.DecisionPersistenceService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,9 +16,12 @@ public class DefaultDecisionRouter implements DecisionRouter {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultDecisionRouter.class);
     private final DecisionOutcomePublisher decisionOutcomePublisher;
+    private final DecisionPersistenceService decisionPersistenceService;
 
-    public DefaultDecisionRouter(DecisionOutcomePublisher decisionOutcomePublisher) {
+    public DefaultDecisionRouter(DecisionOutcomePublisher decisionOutcomePublisher,
+                                 DecisionPersistenceService decisionPersistenceService) {
         this.decisionOutcomePublisher = decisionOutcomePublisher;
+        this.decisionPersistenceService = decisionPersistenceService;
     }
 
     @Override
@@ -31,6 +35,8 @@ public class DefaultDecisionRouter implements DecisionRouter {
         );
 
         log.info("Decision routed", kv("decisionLog", logEntry));
+
+        decisionPersistenceService.persist(result, context);
 
         decisionOutcomePublisher.publish(result, context);
 

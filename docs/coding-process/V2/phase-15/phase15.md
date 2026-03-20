@@ -1,10 +1,10 @@
-# PHASE 14 — Production Hardening & Scale
+# PHASE 15 — Production Hardening & Scale
 
 ## Objective
 
 Prepare TriageMate for **real production workloads** by introducing operational resilience, scalability guarantees, and production-grade observability.
 
-While earlier phases focus on correctness and architecture, Phase 14 focuses on **operational durability** under real-world conditions.
+While earlier phases focus on correctness and architecture, Phase 15 focuses on **operational durability** under real-world conditions.
 
 This phase ensures the system can:
 
@@ -38,7 +38,7 @@ Production debugging must rely on logs, metrics, and traces rather than guesswor
 
 ---
 
-## 14.1 — Kafka Consumer Scaling
+## 15.1 — Kafka Consumer Scaling
 
 ### Goal
 Allow TriageMate services to scale horizontally while consuming Kafka topics safely.
@@ -51,7 +51,7 @@ Allow TriageMate services to scale horizontally while consuming Kafka topics saf
 
 ### Implementation Tasks
 
-#### 14.1.a — Consumer Concurrency Configuration
+#### 15.1.a — Consumer Concurrency Configuration
 
 Introduce explicit configuration for Kafka listener concurrency.
 
@@ -66,7 +66,7 @@ spring:
 
 Ensure that concurrency never exceeds partition count.
 
-#### 14.1.b — Partition Awareness
+#### 15.1.b — Partition Awareness
 
 Verify that each partition is consumed by only one consumer instance at a time.
 
@@ -74,7 +74,7 @@ Verify that each partition is consumed by only one consumer instance at a time.
 - no duplicate event processing
 - no partition ownership conflicts
 
-#### 14.1.c — Consumer Lag Monitoring
+#### 15.1.c — Consumer Lag Monitoring
 
 Expose Kafka consumer lag metrics.
 
@@ -89,7 +89,7 @@ Metrics should include:
 
 ---
 
-## 14.2 — Idempotency Under Horizontal Scale
+## 15.2 — Idempotency Under Horizontal Scale
 
 ### Goal
 Guarantee that horizontal scaling never produces duplicate decisions.
@@ -101,7 +101,7 @@ Guarantee that horizontal scaling never produces duplicate decisions.
 
 ### Implementation Tasks
 
-#### 14.2.a — Atomic Idempotency Insert
+#### 15.2.a — Atomic Idempotency Insert
 
 Use a database constraint to enforce single processing.
 
@@ -117,7 +117,7 @@ ON CONFLICT DO NOTHING
 - duplicate events are safely ignored
 - no race condition under concurrency
 
-#### 14.2.b — Multi-instance Race Test
+#### 15.2.b — Multi-instance Race Test
 
 Run tests with:
 - multiple application instances
@@ -129,7 +129,7 @@ Run tests with:
 
 ---
 
-## 14.3 — Resilience & Failure Handling
+## 15.3 — Resilience & Failure Handling
 
 ### Goal
 Ensure the system degrades gracefully when dependencies fail.
@@ -141,7 +141,7 @@ Ensure the system degrades gracefully when dependencies fail.
 
 ### Implementation Tasks
 
-#### 14.3.a — Retry Strategy
+#### 15.3.a — Retry Strategy
 
 Implement retries for transient failures.
 
@@ -153,7 +153,7 @@ Examples:
 - retry attempts limited
 - exponential backoff used
 
-#### 14.3.b — Circuit Breaker
+#### 15.3.b — Circuit Breaker
 
 Introduce circuit breaker protection around external systems.
 
@@ -164,7 +164,7 @@ Example tools:
 - repeated failures open the circuit
 - system fails fast instead of blocking
 
-#### 14.3.c — Timeout Enforcement
+#### 15.3.c — Timeout Enforcement
 
 Every external call must have explicit timeout limits.
 
@@ -174,7 +174,7 @@ Every external call must have explicit timeout limits.
 
 ---
 
-## 14.4 — Observability & Monitoring
+## 15.4 — Observability & Monitoring
 
 ### Goal
 Make production debugging straightforward.
@@ -186,7 +186,7 @@ Make production debugging straightforward.
 
 ### Implementation Tasks
 
-#### 14.4.a — Structured Logging
+#### 15.4.a — Structured Logging
 
 Ensure all logs are JSON structured.
 
@@ -200,7 +200,7 @@ Fields include:
 **Acceptance:**
 - logs easily parseable by log aggregation systems
 
-#### 14.4.b — Metrics
+#### 15.4.b — Metrics
 
 Expose application metrics.
 
@@ -213,7 +213,7 @@ Examples:
 **Acceptance:**
 - metrics visible via Prometheus endpoint
 
-#### 14.4.c — Tracing Readiness
+#### 15.4.c — Tracing Readiness
 
 Introduce distributed tracing support.
 
@@ -225,7 +225,7 @@ Possible tools:
 
 ---
 
-## 14.5 — Graceful Shutdown
+## 15.5 — Graceful Shutdown
 
 ### Goal
 Prevent data loss during deployments or restarts.
@@ -237,7 +237,7 @@ Prevent data loss during deployments or restarts.
 
 ### Implementation Tasks
 
-#### 14.5.a — Shutdown Hooks
+#### 15.5.a — Shutdown Hooks
 
 Ensure Spring Boot shutdown hooks wait for:
 - message processing completion
@@ -246,7 +246,7 @@ Ensure Spring Boot shutdown hooks wait for:
 **Acceptance:**
 - no partially processed events
 
-#### 14.5.b — Kafka Consumer Pause
+#### 15.5.b — Kafka Consumer Pause
 
 Pause consumers before shutdown.
 
@@ -255,7 +255,7 @@ Pause consumers before shutdown.
 
 ---
 
-## 14.6 — Production Configuration Discipline
+## 15.6 — Production Configuration Discipline
 
 ### Goal
 Ensure environment configuration is explicit and safe.
@@ -267,7 +267,7 @@ Ensure environment configuration is explicit and safe.
 
 ### Implementation Tasks
 
-#### 14.6.a — Externalized Secrets
+#### 15.6.a — Externalized Secrets
 
 Move sensitive values outside the repository.
 
@@ -278,7 +278,7 @@ Examples:
 **Acceptance:**
 - no secrets committed to source control
 
-#### 14.6.b — Environment Profiles
+#### 15.6.b — Environment Profiles
 
 Define environment profiles:
 - `dev`
@@ -292,7 +292,7 @@ Define environment profiles:
 
 ## Verification
 
-### 14.V1 — Horizontal Scaling Test
+### 15.V1 — Horizontal Scaling Test
 
 Run system with multiple instances.
 
@@ -300,7 +300,7 @@ Run system with multiple instances.
 - no duplicate decisions
 - consistent event processing
 
-### 14.V2 — Failure Injection
+### 15.V2 — Failure Injection
 
 Simulate failures:
 - Kafka broker restart
@@ -309,7 +309,7 @@ Simulate failures:
 **Verify:**
 - system recovers automatically
 
-### 14.V3 — Load Simulation
+### 15.V3 — Load Simulation
 
 Simulate sustained event load.
 
@@ -321,7 +321,7 @@ Simulate sustained event load.
 
 ## Completion Criteria
 
-Phase 14 is complete when:
+Phase 15 is complete when:
 
 - ✓ Multiple service instances run safely
 - ✓ Kafka scaling validated

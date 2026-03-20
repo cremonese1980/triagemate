@@ -78,10 +78,12 @@ class AiAdvisedDecisionServiceTest {
         assertEquals(0.92, result.attributes().get("aiConfidence"));
         assertEquals("v1", result.attributes().get("aiModelVersion"));
         assertEquals("1.0.0", result.attributes().get("aiPromptVersion"));
+        assertEquals("DEVICE_ERROR", result.attributes().get("aiSuggestedClassification"));
 
         // Override applied: reason now reflects AI classification
         assertEquals(true, result.attributes().get("aiOverrideApplied"));
         assertEquals("ACCEPT", result.attributes().get("originalOutcome"));
+        assertEquals("ai-override", result.attributes().get("strategy"));
         assertEquals("DEVICE_ERROR", result.reason());
         assertEquals("AI override: High confidence match", result.humanReadableReason());
     }
