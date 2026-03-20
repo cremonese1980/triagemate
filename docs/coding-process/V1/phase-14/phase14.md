@@ -164,15 +164,24 @@ to accommodate different models.
 CREATE TABLE embedding_cache (
     id                  BIGSERIAL PRIMARY KEY,
     content_hash        VARCHAR(64) NOT NULL,
-    embedding_vector    vector(1536),
+    embedding_vector    float8[] NOT NULL,
     embedding_model     VARCHAR(100) NOT NULL,
     dimension           INTEGER NOT NULL,
-    created_at          TIMESTAMP NOT NULL DEFAULT NOW(),
-    last_accessed_at    TIMESTAMP NOT NULL DEFAULT NOW(),
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_accessed_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     access_count        INTEGER DEFAULT 1,
     UNIQUE(content_hash, embedding_model)
 );
 ```
+
+**Implementation notes:**
+- Uses `float8[]` (native PostgreSQL array) instead of `vector(1536)` — the cache only
+  needs exact-match lookups by `(content_hash, embedding_model)`, not similarity search.
+  pgvector is introduced in 14.4 where similarity search is needed.
+- `CachedEmbeddingService` decorates `EmbeddingService` (decorator pattern):
+  on cache miss delegates to `SpringAiEmbeddingService`, persists result; on cache hit
+  reuses the stored vector and updates access metadata.
+- `ContentHasher` utility (SHA-256) is shared with `ExplanationCurationService` for dedup.
 
 **Flow:**
 ```

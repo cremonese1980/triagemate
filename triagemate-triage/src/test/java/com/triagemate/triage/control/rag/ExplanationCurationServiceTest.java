@@ -27,7 +27,7 @@ class ExplanationCurationServiceTest {
     void setUp() {
         repository = new InMemoryExplanationRepository();
         PolicyFamilyProvider familyProvider = () -> "basic-triage";
-        service = new ExplanationCurationService(repository, familyProvider, 0.5);
+        service = new ExplanationCurationService(repository, familyProvider, new ContentHasher(), 0.5);
     }
 
     @Test

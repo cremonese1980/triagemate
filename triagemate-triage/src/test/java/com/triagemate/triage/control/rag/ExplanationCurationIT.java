@@ -92,7 +92,8 @@ class ExplanationCurationIT extends JdbcIntegrationTestBase {
                 DecisionExplanationRepository repository
         ) {
             return new ExplanationCurationService(
-                    repository, new ConstantPolicyFamilyProvider("basic-triage"), 0.5
+                    repository, new ConstantPolicyFamilyProvider("basic-triage"),
+                    new ContentHasher(), 0.5
             );
         }
     }

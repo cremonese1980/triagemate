@@ -15,6 +15,11 @@ import org.springframework.jdbc.core.JdbcTemplate;
 public class RagConfig {
 
     @Bean
+    public ContentHasher contentHasher() {
+        return new ContentHasher();
+    }
+
+    @Bean
     public JdbcDecisionExplanationRepository decisionExplanationRepository(JdbcTemplate jdbcTemplate) {
         return new JdbcDecisionExplanationRepository(jdbcTemplate);
     }
@@ -23,10 +28,11 @@ public class RagConfig {
     public ExplanationCurationService explanationCurationService(
             DecisionExplanationRepository repository,
             PolicyFamilyProvider policyFamilyProvider,
+            ContentHasher contentHasher,
             RagProperties properties
     ) {
         return new ExplanationCurationService(
-                repository, policyFamilyProvider, properties.defaultQualityScore()
+                repository, policyFamilyProvider, contentHasher, properties.defaultQualityScore()
         );
     }
 
@@ -36,11 +42,26 @@ public class RagConfig {
     }
 
     @Bean
+    public JdbcEmbeddingCacheRepository embeddingCacheRepository(JdbcTemplate jdbcTemplate) {
+        return new JdbcEmbeddingCacheRepository(jdbcTemplate);
+    }
+
+    @Bean
     @ConditionalOnBean(EmbeddingModel.class)
-    public SpringAiEmbeddingService embeddingService(
+    public SpringAiEmbeddingService springAiEmbeddingService(
             EmbeddingModel embeddingModel,
             RagProperties properties
     ) {
         return new SpringAiEmbeddingService(embeddingModel, properties.embeddingModel());
+    }
+
+    @Bean
+    @ConditionalOnBean(SpringAiEmbeddingService.class)
+    public CachedEmbeddingService embeddingService(
+            SpringAiEmbeddingService springAiEmbeddingService,
+            EmbeddingCacheRepository cacheRepository,
+            ContentHasher contentHasher
+    ) {
+        return new CachedEmbeddingService(springAiEmbeddingService, cacheRepository, contentHasher);
     }
 }

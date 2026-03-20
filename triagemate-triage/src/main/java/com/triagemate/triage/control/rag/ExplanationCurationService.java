@@ -7,10 +7,6 @@ import com.triagemate.triage.control.policy.PolicyFamilyProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.HexFormat;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -28,15 +24,18 @@ public class ExplanationCurationService {
 
     private final DecisionExplanationRepository repository;
     private final PolicyFamilyProvider policyFamilyProvider;
+    private final ContentHasher contentHasher;
     private final double defaultQualityScore;
 
     public ExplanationCurationService(
             DecisionExplanationRepository repository,
             PolicyFamilyProvider policyFamilyProvider,
+            ContentHasher contentHasher,
             double defaultQualityScore
     ) {
         this.repository = repository;
         this.policyFamilyProvider = policyFamilyProvider;
+        this.contentHasher = contentHasher;
         this.defaultQualityScore = defaultQualityScore;
     }
 
@@ -100,13 +99,7 @@ public class ExplanationCurationService {
 
     String computeContentHash(String classification, String reason) {
         String input = (classification != null ? classification : "") + "|" + (reason != null ? reason : "");
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(hash);
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 not available", e);
-        }
+        return contentHasher.hash(input);
     }
 
     String buildContextSummary(DecisionContext<?> context) {
