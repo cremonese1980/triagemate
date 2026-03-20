@@ -12,10 +12,10 @@ spring:
 triagemate:
 
   policy:
-    version: "1.0.0"
+    version: "2.1.0"
 
   ai:
-    enabled: ${AI_ENABLED:true}
+    enabled: ${AI_ENABLED:false}
     provider: ${AI_PROVIDER:ollama}
     model: ${AI_MODEL:llama3}
     model-version: ${AI_MODEL_VERSION:latest}
@@ -23,8 +23,8 @@ triagemate:
     timeouts:
       advisory: 5s
     cost:
-      max-per-decision-usd: 0.0031
-      max-daily-usd: 0.005
+      max-per-decision-usd: 0.05
+      max-daily-usd: 100.00
       estimated-cost-usd: 0.003
     validation:
       min-confidence-for-suggestion: 0.70

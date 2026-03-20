@@ -1,5 +1,9 @@
 package com.triagemate.triage.replay;
 
+import com.triagemate.triage.control.ai.AiCostResetScheduler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +23,8 @@ public record ReplayResult(
 ) {
     private static final String DECISION_ID_KEY = "decisionId";
 
+    private static final Logger log = LoggerFactory.getLogger(ReplayResult.class);
+
     public ReplayResult {
         originalAttributes = originalAttributes == null ? Map.of() : Map.copyOf(originalAttributes);
         newAttributes = newAttributes == null ? Map.of() : Map.copyOf(newAttributes);
@@ -32,10 +38,27 @@ public record ReplayResult(
     ) {
         Map<String, Object> safeOriginal = originalAttributes == null ? Map.of() : originalAttributes;
         Map<String, Object> safeNew = newAttributes == null ? Map.of() : newAttributes;
+
         List<String> differences = computeDifferences(safeOriginal, safeNew);
+        boolean meaningfulDiff = differences.stream()
+                .anyMatch(d -> !d.contains("strategy") && !d.contains("ai"));
+
+//        TODO Check the drift detection policy
         boolean driftDetected = !Objects.equals(originalOutcome, newOutcome)
                 || !Objects.equals(originalPolicyVersion, newPolicyVersion)
-                || !differences.isEmpty();
+                || meaningfulDiff;
+
+        log.info("********************** Drift check - driftDetected={}, originalOutcome={}, newOutcome={}, originalPolicyVersion={}, " +
+                        "newPolicyVersion={}, differencesEmpty={}, differencesSize={}, differences={}, meaningfulDiff={}",
+                driftDetected,
+                originalOutcome,
+                newOutcome,
+                originalPolicyVersion,
+                newPolicyVersion,
+                differences == null || differences.isEmpty(),
+                differences != null ? differences.size() : 0,
+                differences,
+                meaningfulDiff);
 
         return new ReplayResult(
                 originalDecisionId,

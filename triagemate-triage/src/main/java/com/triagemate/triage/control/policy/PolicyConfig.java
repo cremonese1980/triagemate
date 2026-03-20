@@ -12,6 +12,8 @@ public class PolicyConfig {
     @Bean
     @ConditionalOnMissingBean
     List<Policy> policies() {
-        return List.of(new AcceptAllPolicy());
+//        return List.of(new AcceptAllPolicy());
+        return List.of(new BasicTriagePolicy());
+
     }
 }
