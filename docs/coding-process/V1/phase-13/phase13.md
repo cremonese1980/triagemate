@@ -800,9 +800,14 @@ void phase9Through12Invariants_stillWork() {
 
 ### Known Limitations
 
+> Current implementation note: Phase 13 delivers deterministic policy replay and persisted decision artifacts, but it is not yet a full historical runtime replay engine.
+
 | Limitation | Impact | Mitigation |
 |---|---|---|
-| **Replay context uses `Instant.now()`** instead of original `occurredAt` | If future policies depend on event timestamp, replay may produce different outcomes than original | Today's policies are time-independent; will be addressed when time-dependent policies are added |
+| **Replay runs deterministic policy only** (AI advisory is intentionally excluded) | Replay answers “what would deterministic policy do now with this persisted input?” rather than reproducing the exact historical runtime path when AI participated | Keep this semantics explicit in docs and APIs; consider optional full-runtime replay only if governance value justifies the extra audit footprint |
+| **Policy versioning is provider-based, not registry-based** | `policyVersion` is persisted and compared, but there is no `version -> policy implementation` lookup that guarantees re-execution of the exact historical rule set | Accept for V1 governance/showcase; add a `PolicyRegistry` in a future phase when versioned executable policies become necessary |
+| **Replay context reuses persisted decision timestamp, not original envelope timestamp/metadata** | Safer than `Instant.now()` for determinism, but not a perfect reconstruction if future policies depend on producer trace metadata or original envelope timestamps | Persist the full envelope snapshot if replay fidelity must become audit-grade at the context level |
+| **Drift detection follows business semantics, not full forensic semantics** | Drift ignores AI/strategy-only attribute differences and focuses on outcome, policy version, and non-ignored business attributes | Keep current boolean drift for V1; add stronger diff policies later if audit requirements tighten |
 | **Replay context uses empty metadata** (`Map.of()`) instead of original trace/headers | If future policies depend on trace context or producer metadata, replay loses fidelity | Original envelope metadata is not currently stored; can be added to `input_snapshot` if needed |
 | **Replay bypasses AI layer** (by design) | Replay outcomes reflect only deterministic policy, not AI advisory enrichment | This is intentional per "deterministic-first" architecture; AI advisory is non-deterministic and costly |
 

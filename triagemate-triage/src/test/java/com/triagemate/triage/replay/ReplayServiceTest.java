@@ -15,6 +15,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -29,12 +30,14 @@ class ReplayServiceTest {
     private final ObjectMapper objectMapper = new ObjectMapperConfig().objectMapper();
     private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
     private ReplayService replayService;
+    private final AtomicReference<Instant> replayOccurredAt = new AtomicReference<>();
 
     @BeforeEach
     void setUp() {
         DecisionService deterministicService = new DecisionService() {
             @Override
             public DecisionResult decide(DecisionContext<?> context) {
+                replayOccurredAt.set(context.occurredAt());
                 return DecisionResult.of(
                         DecisionOutcome.ACCEPT,
                         "DEVICE_ERROR",
@@ -88,4 +91,28 @@ class ReplayServiceTest {
         assertThat(meterRegistry.get("triagemate.decision.total").tag("outcome", "accept").counter().count())
                 .isEqualTo(1.0);
     }
+
+
+    @Test
+    void replayByDecisionId_reusesPersistedDecisionTimestampInReplayContext() throws Exception {
+        UUID decisionId = UUID.randomUUID();
+        Instant persistedAt = Instant.parse("2026-03-18T10:15:30Z");
+        DecisionRecord record = new DecisionRecord(
+                decisionId,
+                "evt-2",
+                "1.0.0",
+                "ACCEPT",
+                "ACCEPTED_BY_DEFAULT",
+                "All policies passed",
+                objectMapper.writeValueAsString(new InputReceivedV1("input-2", "email", "subj", "body", "from@test", 1700000000000L)),
+                objectMapper.writeValueAsString(Map.of("decisionId", decisionId.toString(), "strategy", "rules-v1")),
+                persistedAt
+        );
+        when(repository.findById(decisionId)).thenReturn(Optional.of(record));
+
+        replayService.replayByDecisionId(decisionId);
+
+        assertThat(replayOccurredAt.get()).isEqualTo(persistedAt);
+    }
+
 }

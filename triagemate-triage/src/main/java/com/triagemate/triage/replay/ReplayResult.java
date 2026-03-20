@@ -1,9 +1,5 @@
 package com.triagemate.triage.replay;
 
-import com.triagemate.triage.control.ai.AiCostResetScheduler;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -23,7 +19,7 @@ public record ReplayResult(
 ) {
     private static final String DECISION_ID_KEY = "decisionId";
 
-    private static final Logger log = LoggerFactory.getLogger(ReplayResult.class);
+    private static final List<String> DRIFT_IGNORED_ATTRIBUTE_PREFIXES = List.of("strategy", "ai");
 
     public ReplayResult {
         originalAttributes = originalAttributes == null ? Map.of() : Map.copyOf(originalAttributes);
@@ -40,25 +36,11 @@ public record ReplayResult(
         Map<String, Object> safeNew = newAttributes == null ? Map.of() : newAttributes;
 
         List<String> differences = computeDifferences(safeOriginal, safeNew);
-        boolean meaningfulDiff = differences.stream()
-                .anyMatch(d -> !d.contains("strategy") && !d.contains("ai"));
+        boolean meaningfulDiff = differences.stream().anyMatch(diff -> !isIgnorableDifference(diff));
 
-//        TODO Check the drift detection policy
         boolean driftDetected = !Objects.equals(originalOutcome, newOutcome)
                 || !Objects.equals(originalPolicyVersion, newPolicyVersion)
                 || meaningfulDiff;
-
-        log.info("********************** Drift check - driftDetected={}, originalOutcome={}, newOutcome={}, originalPolicyVersion={}, " +
-                        "newPolicyVersion={}, differencesEmpty={}, differencesSize={}, differences={}, meaningfulDiff={}",
-                driftDetected,
-                originalOutcome,
-                newOutcome,
-                originalPolicyVersion,
-                newPolicyVersion,
-                differences == null || differences.isEmpty(),
-                differences != null ? differences.size() : 0,
-                differences,
-                meaningfulDiff);
 
         return new ReplayResult(
                 originalDecisionId,
@@ -66,6 +48,11 @@ public record ReplayResult(
                 newOutcome, newPolicyVersion, newAttributes,
                 driftDetected, differences
         );
+    }
+
+
+    private static boolean isIgnorableDifference(String diff) {
+        return DRIFT_IGNORED_ATTRIBUTE_PREFIXES.stream().anyMatch(diff::contains);
     }
 
     private static List<String> computeDifferences(

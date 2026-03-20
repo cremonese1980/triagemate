@@ -14,7 +14,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -67,7 +66,7 @@ public class ReplayService {
                 original.getEventId(),
                 "replay",
                 1,
-                Instant.now(),
+                original.getCreatedAt(),
                 Map.of(),
                 input
         );
