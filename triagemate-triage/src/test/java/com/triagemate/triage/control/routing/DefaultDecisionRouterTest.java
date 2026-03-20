@@ -30,7 +30,7 @@ class DefaultDecisionRouterTest {
 
     @BeforeEach
     void setUp() {
-        router = new DefaultDecisionRouter(publisher, persistenceService);
+        router = new DefaultDecisionRouter(publisher, persistenceService, null);
     }
 
     private final DecisionContext<String> context = DecisionContext.of(

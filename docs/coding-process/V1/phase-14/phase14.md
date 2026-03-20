@@ -59,6 +59,14 @@ Phase 13 must be complete:
 - **Graceful degradation:** RAG failure does not block advisory — AI proceeds without context
 - **Bounded:** Token budget for context injection is capped (max 1500 tokens)
 
+### Policy Family Concept
+
+The current codebase provides `PolicyVersionProvider.currentVersion()` (e.g., `"1.0.0"`).
+Phase 14 introduces the concept of **policy family** (e.g., `"basic-triage"`) via a new
+`PolicyFamilyProvider` interface and `ConstantPolicyFamilyProvider` (reads from
+`triagemate.policy.family`, default `"basic-triage"`). Policy family groups related policy
+versions and is used for retrieval filtering in 14.5.
+
 ---
 
 ## Sub-Phases
@@ -78,6 +86,7 @@ CREATE TABLE decision_explanations (
     outcome                 VARCHAR(50),
     decision_reason         TEXT NOT NULL,
     decision_context_summary TEXT,
+    content_hash            VARCHAR(64) NOT NULL,
     quality_score           DOUBLE PRECISION DEFAULT 0.5,
     curated_by              VARCHAR(50) DEFAULT 'system',
     created_at              TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -88,12 +97,20 @@ CREATE INDEX idx_explanations_classification ON decision_explanations(classifica
 CREATE INDEX idx_explanations_quality ON decision_explanations(quality_score);
 CREATE INDEX idx_explanations_created ON decision_explanations(created_at);
 CREATE INDEX idx_explanations_policy ON decision_explanations(policy_family, policy_version);
+CREATE UNIQUE INDEX idx_explanations_content_hash ON decision_explanations(content_hash) WHERE archived_at IS NULL;
 ```
+
+**Content hash:** SHA-256 hex of `classification + "|" + decision_reason`, used for duplicate detection.
+Only non-archived rows enforce uniqueness (partial unique index).
+
+**Classification mapping:** In the current codebase, `classification` maps to the `reasonCode`
+from deterministic policies (e.g., `RULE_ERROR_KEYWORDS`, `RULE_URGENT_EMAIL`) or to
+`suggestedClassification` from AI when an override is applied.
 
 **Curation criteria (automated, simple for V1):**
 - Decision reached final state (ACCEPT or REJECT)
 - Has a non-generic `decision_reason`
-- Not a duplicate (same classification + context hash)
+- Not a duplicate (same `content_hash` among non-archived rows)
 
 **Acceptance:**
 - Retrieval source is curated, not raw events
@@ -115,15 +132,26 @@ public interface EmbeddingService {
 
 **Provider:** `SpringAiEmbeddingService` — delegates to Spring AI's `EmbeddingModel`
 
+**Embedding provider note:** Anthropic does not offer embedding models. Embeddings use
+Ollama (e.g., `nomic-embed-text`, 768 dimensions) or another Spring AI-compatible provider.
+The embedding dimension (1536 in later sub-phases) should be configurable, not hardcoded,
+to accommodate different models.
+
 **Embedding input:** concatenation of:
 - Normalized decision reason
 - Classification
 - Context summary (max 500 chars)
 
+**Text preparation:** `EmbeddingTextPreparer` normalizes the input text before embedding:
+- Lowercase, trim, collapse whitespace
+- Structured format: `"classification: {X}\nreason: {Y}\ncontext: {Z}"`
+- Context summary truncated to 500 characters
+
 **Acceptance:**
 - Embeddings generated from curated text
 - Embedding generation is repeatable for same input
 - Embedding model name tracked
+- Text normalization ensures consistent embeddings for equivalent content
 
 ---
 
