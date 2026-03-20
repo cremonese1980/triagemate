@@ -40,7 +40,7 @@ class ExplanationCurationServiceTest {
         assertEquals(1, repository.saved.size());
         DecisionExplanation explanation = repository.saved.getFirst();
         assertEquals("ACCEPT", explanation.outcome());
-        assertEquals("RULE_ERROR_KEYWORDS", explanation.classification());
+        assertEquals("POLICY_REJECTED", explanation.classification());
         assertEquals("Error keywords detected in message", explanation.decisionReason());
     }
 
