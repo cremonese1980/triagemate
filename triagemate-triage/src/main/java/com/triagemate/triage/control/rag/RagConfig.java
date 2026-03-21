@@ -69,4 +69,13 @@ public class RagConfig {
     ) {
         return new CachedEmbeddingService(springAiEmbeddingService, cacheRepository, contentHasher);
     }
+
+    @Bean
+    @ConditionalOnBean(CachedEmbeddingService.class)
+    public DefaultDecisionMemoryService decisionMemoryService(
+            CachedEmbeddingService embeddingService,
+            DecisionEmbeddingRepository embeddingRepository
+    ) {
+        return new DefaultDecisionMemoryService(embeddingService, embeddingRepository);
+    }
 }

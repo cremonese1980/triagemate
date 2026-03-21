@@ -12,4 +12,7 @@ public interface DecisionEmbeddingRepository {
     List<DecisionEmbedding> findSimilar(float[] queryVector, String embeddingModel, int limit);
 
     boolean existsByExplanationId(long explanationId);
+
+    List<DecisionExplanationContext> findSimilarWithFilters(
+            float[] queryVector, String embeddingModel, int limit, RetrievalFilters filters);
 }
