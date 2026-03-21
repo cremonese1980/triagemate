@@ -252,5 +252,15 @@ class ExplanationCurationServiceTest {
         public List<DecisionExplanation> findByClassification(String classification) {
             return saved.stream().filter(e -> classification.equals(e.classification())).toList();
         }
+
+        @Override
+        public List<DecisionExplanation> findAllNonArchived() {
+            return saved.stream().filter(e -> e.archivedAt() == null).toList();
+        }
+
+        @Override
+        public int countNonArchived() {
+            return (int) saved.stream().filter(e -> e.archivedAt() == null).count();
+        }
     }
 }
