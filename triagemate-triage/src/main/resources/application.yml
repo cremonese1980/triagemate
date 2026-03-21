@@ -62,6 +62,14 @@ logging:
 triagemate:
   policy:
     version: "1.0.0"
+    family: "basic-triage"
+
+  rag:
+    enabled: ${RAG_ENABLED:false}
+    embedding-model: ${RAG_EMBEDDING_MODEL:nomic-embed-text}
+    embedding-dimension: ${RAG_EMBEDDING_DIMENSION:768}
+    max-context-summary-length: 500
+    default-quality-score: 0.5
 
   ai:
     enabled: ${AI_ENABLED:false}

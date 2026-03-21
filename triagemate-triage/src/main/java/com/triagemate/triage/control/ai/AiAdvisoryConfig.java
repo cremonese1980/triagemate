@@ -1,10 +1,14 @@
 package com.triagemate.triage.control.ai;
 
 import com.triagemate.triage.control.decision.DecisionService;
+import com.triagemate.triage.control.policy.PolicyFamilyProvider;
+import com.triagemate.triage.control.rag.DecisionMemoryService;
+import com.triagemate.triage.control.rag.RagProperties;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.retry.Retry;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
@@ -28,11 +32,17 @@ public class AiAdvisoryConfig {
             PromptTemplateService promptTemplateService,
             AiResponseParser responseParser,
             PromptSanitizer promptSanitizer,
-            AiAdvisoryProperties properties
+            AiAdvisoryProperties properties,
+            ObjectProvider<DecisionMemoryService> memoryServiceProvider,
+            ObjectProvider<PolicyFamilyProvider> policyFamilyProvider,
+            ObjectProvider<RagProperties> ragPropertiesProvider
     ) {
         return new SpringAiDecisionAdvisor(
                 aiChatClient, promptTemplateService, responseParser,
-                promptSanitizer, properties
+                promptSanitizer, properties,
+                memoryServiceProvider.getIfAvailable(),
+                policyFamilyProvider.getIfAvailable(),
+                ragPropertiesProvider.getIfAvailable()
         );
     }
 

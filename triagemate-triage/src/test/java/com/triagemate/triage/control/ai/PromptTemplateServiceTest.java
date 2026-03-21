@@ -12,14 +12,16 @@ class PromptTemplateServiceTest {
 
     @Test
     void rendersVariables() {
-        String result = service.render(Map.of(
-                "classification", "ACCEPT",
-                "outcome", "ACCEPT",
-                "reason", "all policies passed",
-                "eventType", "device.telemetry",
-                "payloadSummary", "temperature=42",
-                "classificationRule", "one of: DEVICE_ERROR, NORMAL"
-        ));
+        var variables = new java.util.HashMap<String, String>();
+        variables.put("classification", "ACCEPT");
+        variables.put("outcome", "ACCEPT");
+        variables.put("reason", "all policies passed");
+        variables.put("eventType", "device.telemetry");
+        variables.put("payloadSummary", "temperature=42");
+        variables.put("classificationRule", "one of: DEVICE_ERROR, NORMAL");
+        variables.put("historicalContext", "");
+
+        String result = service.render(variables);
 
         assertTrue(result.contains("Classification: ACCEPT"));
         assertTrue(result.contains("Outcome: ACCEPT"));
@@ -30,8 +32,25 @@ class PromptTemplateServiceTest {
     }
 
     @Test
+    void rendersHistoricalContext() {
+        var variables = new java.util.HashMap<String, String>();
+        variables.put("classification", "ACCEPT");
+        variables.put("outcome", "ACCEPT");
+        variables.put("reason", "test");
+        variables.put("eventType", "test");
+        variables.put("payloadSummary", "test");
+        variables.put("classificationRule", "free-form");
+        variables.put("historicalContext", "\nSIMILAR HISTORICAL DECISIONS:\n1. [Classification: DEVICE_ERROR] Reasoning: Spike\n   Outcome: ACCEPT\n");
+
+        String result = service.render(variables);
+
+        assertTrue(result.contains("SIMILAR HISTORICAL DECISIONS:"));
+        assertTrue(result.contains("[Classification: DEVICE_ERROR]"));
+    }
+
+    @Test
     void promptVersionIsSet() {
-        assertEquals("1.0.1", service.getPromptVersion());
+        assertEquals("1.1.0", service.getPromptVersion());
     }
 
     @Test

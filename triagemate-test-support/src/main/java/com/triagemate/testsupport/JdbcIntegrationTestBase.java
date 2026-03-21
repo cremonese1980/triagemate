@@ -17,7 +17,7 @@ public abstract class JdbcIntegrationTestBase {
 
     @Container
     protected static PostgreSQLContainer<?> postgres =
-            new PostgreSQLContainer<>("postgres:16-alpine")
+            new PostgreSQLContainer<>("pgvector/pgvector:pg16")
                     .withDatabaseName("triagemate_test")
                     .withUsername("test")
                     .withPassword("test");

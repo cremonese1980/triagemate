@@ -58,6 +58,9 @@ management:
         enabled: true
 
 triagemate:
+  rag:
+    enabled: false
+
   ai:
     enabled: false
     provider: ollama

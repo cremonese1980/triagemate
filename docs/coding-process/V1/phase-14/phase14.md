@@ -59,6 +59,14 @@ Phase 13 must be complete:
 - **Graceful degradation:** RAG failure does not block advisory — AI proceeds without context
 - **Bounded:** Token budget for context injection is capped (max 1500 tokens)
 
+### Policy Family Concept
+
+The current codebase provides `PolicyVersionProvider.currentVersion()` (e.g., `"1.0.0"`).
+Phase 14 introduces the concept of **policy family** (e.g., `"basic-triage"`) via a new
+`PolicyFamilyProvider` interface and `ConstantPolicyFamilyProvider` (reads from
+`triagemate.policy.family`, default `"basic-triage"`). Policy family groups related policy
+versions and is used for retrieval filtering in 14.5.
+
 ---
 
 ## Sub-Phases
@@ -78,22 +86,31 @@ CREATE TABLE decision_explanations (
     outcome                 VARCHAR(50),
     decision_reason         TEXT NOT NULL,
     decision_context_summary TEXT,
+    content_hash            VARCHAR(64) NOT NULL,
     quality_score           DOUBLE PRECISION DEFAULT 0.5,
     curated_by              VARCHAR(50) DEFAULT 'system',
-    created_at              TIMESTAMP NOT NULL DEFAULT NOW(),
-    archived_at             TIMESTAMP
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    archived_at             TIMESTAMPTZ
 );
 
 CREATE INDEX idx_explanations_classification ON decision_explanations(classification);
 CREATE INDEX idx_explanations_quality ON decision_explanations(quality_score);
 CREATE INDEX idx_explanations_created ON decision_explanations(created_at);
 CREATE INDEX idx_explanations_policy ON decision_explanations(policy_family, policy_version);
+CREATE UNIQUE INDEX idx_explanations_content_hash ON decision_explanations(content_hash) WHERE archived_at IS NULL;
 ```
+
+**Content hash:** SHA-256 hex of `classification + "|" + decision_reason`, used for duplicate detection.
+Only non-archived rows enforce uniqueness (partial unique index).
+
+**Classification mapping:** In the current codebase, `classification` maps to the `reasonCode`
+from deterministic policies (e.g., `RULE_ERROR_KEYWORDS`, `RULE_URGENT_EMAIL`) or to
+`suggestedClassification` from AI when an override is applied.
 
 **Curation criteria (automated, simple for V1):**
 - Decision reached final state (ACCEPT or REJECT)
 - Has a non-generic `decision_reason`
-- Not a duplicate (same classification + context hash)
+- Not a duplicate (same `content_hash` among non-archived rows)
 
 **Acceptance:**
 - Retrieval source is curated, not raw events
@@ -115,15 +132,26 @@ public interface EmbeddingService {
 
 **Provider:** `SpringAiEmbeddingService` — delegates to Spring AI's `EmbeddingModel`
 
+**Embedding provider note:** Anthropic does not offer embedding models. Embeddings use
+Ollama (e.g., `nomic-embed-text`, 768 dimensions) or another Spring AI-compatible provider.
+The embedding dimension (1536 in later sub-phases) should be configurable, not hardcoded,
+to accommodate different models.
+
 **Embedding input:** concatenation of:
 - Normalized decision reason
 - Classification
 - Context summary (max 500 chars)
 
+**Text preparation:** `EmbeddingTextPreparer` normalizes the input text before embedding:
+- Lowercase, trim, collapse whitespace
+- Structured format: `"classification: {X}\nreason: {Y}\ncontext: {Z}"`
+- Context summary truncated to 500 characters
+
 **Acceptance:**
 - Embeddings generated from curated text
 - Embedding generation is repeatable for same input
 - Embedding model name tracked
+- Text normalization ensures consistent embeddings for equivalent content
 
 ---
 
@@ -136,15 +164,24 @@ public interface EmbeddingService {
 CREATE TABLE embedding_cache (
     id                  BIGSERIAL PRIMARY KEY,
     content_hash        VARCHAR(64) NOT NULL,
-    embedding_vector    vector(1536),
+    embedding_vector    float8[] NOT NULL,
     embedding_model     VARCHAR(100) NOT NULL,
     dimension           INTEGER NOT NULL,
-    created_at          TIMESTAMP NOT NULL DEFAULT NOW(),
-    last_accessed_at    TIMESTAMP NOT NULL DEFAULT NOW(),
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_accessed_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     access_count        INTEGER DEFAULT 1,
     UNIQUE(content_hash, embedding_model)
 );
 ```
+
+**Implementation notes:**
+- Uses `float8[]` (native PostgreSQL array) instead of `vector(1536)` — the cache only
+  needs exact-match lookups by `(content_hash, embedding_model)`, not similarity search.
+  pgvector is introduced in 14.4 where similarity search is needed.
+- `CachedEmbeddingService` decorates `EmbeddingService` (decorator pattern):
+  on cache miss delegates to `SpringAiEmbeddingService`, persists result; on cache hit
+  reuses the stored vector and updates access metadata.
+- `ContentHasher` utility (SHA-256) is shared with `ExplanationCurationService` for dedup.
 
 **Flow:**
 ```
@@ -176,16 +213,27 @@ CREATE EXTENSION IF NOT EXISTS vector;
 CREATE TABLE decision_embeddings (
     id                          BIGSERIAL PRIMARY KEY,
     decision_explanation_id     BIGINT NOT NULL REFERENCES decision_explanations(id),
-    embedding                   vector(1536),
+    embedding                   vector(768) NOT NULL,
     embedding_model             VARCHAR(100) NOT NULL,
-    created_at                  TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE INDEX idx_embeddings_explanation ON decision_embeddings(decision_explanation_id);
+CREATE INDEX idx_embeddings_model ON decision_embeddings(embedding_model);
 CREATE INDEX idx_embeddings_cosine
     ON decision_embeddings
     USING ivfflat (embedding vector_cosine_ops)
-    WITH (lists = 100);
+    WITH (lists = 10);
 ```
+
+**Implementation notes:**
+- Uses `vector(768)` to match default `nomic-embed-text` model dimension (configurable via
+  `triagemate.rag.embedding-dimension`). If the model changes, a new migration adjusts the column.
+- Uses `TIMESTAMPTZ` (not `TIMESTAMP`) consistent with all other migrations.
+- ivfflat `lists = 10` is appropriate for V1 scale (< 100K vectors).
+- Testcontainers image changed from `postgres:16-alpine` to `pgvector/pgvector:pg16` to
+  support `CREATE EXTENSION vector`.
+- pgvector vectors stored/read via string casting (`?::vector`), no extra Java dependency needed.
 
 **Acceptance:**
 - Vector storage integrated with existing PostgreSQL
@@ -295,6 +343,18 @@ in the same vector space.
 - On model change: background re-embedding job regenerates all vectors
 - During re-indexing: retrieval degrades gracefully (fewer results, not wrong results)
 - Old embeddings are retained until re-indexing completes, then archived
+
+**Implementation notes:**
+- `EmbeddingReindexService` orchestrates the re-indexing lifecycle:
+  - `reindex()`: iterates all non-archived explanations, generates embeddings for the current
+    model, skips already-indexed entries (idempotent)
+  - `purgeOldModelEmbeddings(model)`: deletes embeddings from obsolete models after re-indexing
+  - `isReindexNeeded()`: detects model drift (current model embedding count < explanation count)
+- Re-indexing is synchronous and on-demand (V1 simplicity, < 100K decisions)
+- No automatic startup trigger — called explicitly to avoid risk
+- Graceful degradation during re-indexing is implicit: `findSimilarWithFilters` filters by
+  `embedding_model`, so only current-model embeddings are returned (fewer, not wrong)
+- `ReindexResult` record tracks created/skipped/failed counts for observability
 
 **Acceptance:**
 - Embedding model change triggers re-indexing
