@@ -56,6 +56,11 @@ public class RagConfig {
     }
 
     @Bean
+    public JdbcDecisionEmbeddingRepository decisionEmbeddingRepository(JdbcTemplate jdbcTemplate) {
+        return new JdbcDecisionEmbeddingRepository(jdbcTemplate);
+    }
+
+    @Bean
     @ConditionalOnBean(SpringAiEmbeddingService.class)
     public CachedEmbeddingService embeddingService(
             SpringAiEmbeddingService springAiEmbeddingService,

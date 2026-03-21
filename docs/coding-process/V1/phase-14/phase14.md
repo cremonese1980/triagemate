@@ -213,16 +213,27 @@ CREATE EXTENSION IF NOT EXISTS vector;
 CREATE TABLE decision_embeddings (
     id                          BIGSERIAL PRIMARY KEY,
     decision_explanation_id     BIGINT NOT NULL REFERENCES decision_explanations(id),
-    embedding                   vector(1536),
+    embedding                   vector(768) NOT NULL,
     embedding_model             VARCHAR(100) NOT NULL,
-    created_at                  TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE INDEX idx_embeddings_explanation ON decision_embeddings(decision_explanation_id);
+CREATE INDEX idx_embeddings_model ON decision_embeddings(embedding_model);
 CREATE INDEX idx_embeddings_cosine
     ON decision_embeddings
     USING ivfflat (embedding vector_cosine_ops)
-    WITH (lists = 100);
+    WITH (lists = 10);
 ```
+
+**Implementation notes:**
+- Uses `vector(768)` to match default `nomic-embed-text` model dimension (configurable via
+  `triagemate.rag.embedding-dimension`). If the model changes, a new migration adjusts the column.
+- Uses `TIMESTAMPTZ` (not `TIMESTAMP`) consistent with all other migrations.
+- ivfflat `lists = 10` is appropriate for V1 scale (< 100K vectors).
+- Testcontainers image changed from `postgres:16-alpine` to `pgvector/pgvector:pg16` to
+  support `CREATE EXTENSION vector`.
+- pgvector vectors stored/read via string casting (`?::vector`), no extra Java dependency needed.
 
 **Acceptance:**
 - Vector storage integrated with existing PostgreSQL
