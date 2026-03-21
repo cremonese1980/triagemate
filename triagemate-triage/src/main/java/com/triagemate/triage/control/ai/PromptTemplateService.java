@@ -14,11 +14,11 @@ import java.util.Map;
 @Component
 public class PromptTemplateService {
 
-    private static final String TEMPLATE_PATH = "prompts/advisory/v1.0.1-decision-advisor.txt";
+    private static final String TEMPLATE_PATH = "prompts/advisory/v1.1.0-decision-advisor.txt";
 
     private final String template;
     private final String promptHash;
-    private final String promptVersion = "1.0.1";
+    private final String promptVersion = "1.1.0";
 
     public PromptTemplateService() {
         this.template = loadResource(TEMPLATE_PATH);
