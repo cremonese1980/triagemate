@@ -1,131 +1,200 @@
-# Triagemate v1.0 (Control Plane Refactor)
+# TriageMate
 
-Triagemate is an event-driven decision system: ingest receives HTTP input, triage produces deterministic decisions, and outcomes are emitted as versioned events.
+**Deterministic decision engine with AI advisory, replay governance, and full audit trail.**
 
-## System purpose
-- Accept external operational messages through HTTP.
-- Convert requests into auditable events.
-- Run a deterministic decision pipeline before any AI augmentation.
-- Emit replayable decision events for downstream consumers.
+A production-grade event-driven system where policy decides, AI advises, and every decision is versioned, persisted, and replayable.
 
-## Architecture overview
+---
 
-```text
-┌───────────────┐      HTTP POST       ┌───────────────────┐
-│ External App  ├─────────────────────►│ triagemate-ingest │
-└───────────────┘                      └─────────┬─────────┘
-                                                 │ Kafka publish: input-received.v1
-                                                 ▼
-                                          ┌──────────────┐
-                                          │    Kafka     │
-                                          └──────┬───────┘
-                                                 │ Kafka consume
-                                                 ▼
-                                         ┌───────────────────┐
-                                         │ triagemate-triage │
-                                         │ deterministic rule│
-                                         └─────────┬─────────┘
-                                                   │ Kafka publish: decision-made.v1
-                                                   ▼
-                                            ┌──────────────┐
-                                            │    Kafka     │
-                                            └──────────────┘
+## Why This Exists
+
+Most decision systems in production share the same problems: they can't explain why a decision was made, they can't reproduce it, and AI is entangled with business logic in ways that make governance impossible.
+
+TriageMate is built around a different premise: **deterministic policy is the source of truth**. AI participates as a controlled advisory layer — never as the decision authority. Every decision is linked to a policy version, persisted with full context, and replayable with drift detection.
+
+This matters in domains like fintech, compliance, fraud detection, and operations — anywhere you need to answer "why did the system decide this, and would it decide the same thing today?"
+
+---
+
+## Architecture
+
+```
+                         ┌───────────────────┐
+   HTTP POST ──────────► │ triagemate-ingest │
+                         └────────┬──────────┘
+                                  │ Kafka: input-received.v1
+                                  ▼
+                         ┌────────────────────┐
+                         │  triagemate-triage  │
+                         │                     │
+                         │  ┌───────────────┐  │
+                         │  │ Policy Engine │  │  ← deterministic decisions
+                         │  └───────┬───────┘  │
+                         │          │          │
+                         │  ┌───────▼───────┐  │
+                         │  │  AI Advisory  │  │  ← optional, never overrides
+                         │  └───────┬───────┘  │
+                         │          │          │
+                         │  ┌───────▼───────┐  │
+                         │  │  Persistence  │  │  ← decisions + outbox (atomic)
+                         │  └───────────────┘  │
+                         └────────┬────────────┘
+                                  │ Kafka: decision-made.v1
+                                  ▼
+                           Downstream consumers
 ```
 
-🧠 Durable Idempotency (Phase 9.2)
+### Module Responsibilities
 
-## Durable Idempotency (Phase 9.2)
+| Module | Role |
+|---|---|
+| `triagemate-contracts` | Versioned event envelope and payload definitions. No framework dependencies. |
+| `triagemate-ingest` | HTTP API → validation → Kafka publish. Zero business logic. |
+| `triagemate-triage` | Decision engine, AI advisory layer, persistence, replay, event emission. |
 
-TriageMate implements **database-backed idempotency** to guarantee
-duplicate-safe and restart-safe processing.
+---
 
-### Strategy
+## Key Engineering Decisions
 
-- Table: `processed_events`
-- Unique constraint on `event_id`
-- Atomic insert-first pattern:
-```sql
-INSERT INTO processed_events (event_id, processed_at)
-VALUES (?, ?)
-ON CONFLICT (event_id) DO NOTHING
-RETURNING 1;
+### Deterministic-First, AI-Second
+
+The decision pipeline runs deterministic policy logic first. AI classification (via OpenAI, Anthropic, or local Ollama models) is layered on top through a decorator pattern — it can enrich a decision but never override policy. Replay always uses the deterministic path, guaranteeing `same input + same policy = same output`.
+
+### Transactional Outbox (No Dual-Write)
+
+Decision persistence and outbox writes happen in a single database transaction. An async publisher polls the outbox with `SELECT ... FOR UPDATE SKIP LOCKED` for concurrency-safe emission. No event loss on crash, no distributed transaction coordination.
+
+### Durable Idempotency
+
+A `processed_events` table with a unique constraint on `event_id` provides atomic claim semantics via `INSERT ... ON CONFLICT DO NOTHING`. Duplicate-safe, restart-safe, race-condition-safe — without distributed locks.
+
+### Policy Versioning and Replay
+
+Every decision record includes the `policyVersion` that produced it. The replay engine re-executes historical decisions against their original policy and detects drift. This enables audit, compliance verification, debugging production issues, and safe validation of policy changes before rollout.
+
+### AI Cost Governance
+
+AI calls are gated by configurable budget limits with thread-safe cost tracking (`AtomicLong`-based). The system degrades gracefully — if the budget is exhausted, decisions continue without AI enrichment.
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Language | Java 21 |
+| Framework | Spring Boot 3.4 |
+| Messaging | Apache Kafka (Confluent 7.6) |
+| Database | PostgreSQL + pgvector |
+| AI Integration | Spring AI — OpenAI, Anthropic, Ollama (local GPU) |
+| Containerization | Docker, Docker Compose |
+| Testing | JUnit 5, Testcontainers, Spring Kafka Test |
+| CI | GitHub Actions |
+| Build | Maven (multi-module) |
+
+---
+
+## Quick Start
+
+### With Docker
+
+```bash
+cp .env.example .env
+docker compose up --build
 ```
 
-### Processing Order (claim-first)
+### Send a message
 
-1. Validate message
-2. Attempt atomic claim (tryMarkProcessed)
-3. If already claimed → short-circuit
-4. Execute decision logic
-5. Publish decision event
+```bash
+curl -X POST http://localhost:8081/api/ingest/messages \
+  -H "Content-Type: application/json" \
+  -d '{
+    "inputId": "input-001",
+    "channel": "email",
+    "subject": "Device issue",
+    "text": "The device has a blinking LED",
+    "from": "user@example.com"
+  }'
+```
 
-### Guarantees
+### What happens
 
-* Duplicate-safe across restarts
-* Race-safe across concurrent consumers
-* No in-memory state
-* PostgreSQL enforces uniqueness
+1. Ingest validates and publishes `input-received.v1` to Kafka
+2. Triage consumes the event, runs deterministic policy, optionally enriches with AI
+3. Decision is persisted with full context (policy version, reasoning, snapshot)
+4. `decision-made.v1` is emitted via transactional outbox
+5. Consumer offset is acknowledged only after successful persistence
 
-### Transactional Outbox (Phase 10)
+### Endpoints
 
-Decision events are published via the **Transactional Outbox pattern**,
-eliminating the dual-write crash window:
+| Service | URL |
+|---|---|
+| Ingest API | `http://localhost:8081/api/ingest/messages` |
+| Triage Health | `http://localhost:8082/actuator/health` |
 
-1. Business transaction atomically writes `processed_events` + `outbox_events`
-2. Async `OutboxPublisher` polls PENDING rows and publishes to Kafka
-3. `FOR UPDATE SKIP LOCKED` ensures multi-instance safety
-4. Exponential backoff retry on publish failure (configurable max attempts)
-5. No direct `kafkaTemplate.send()` inside business transactions
+### Without Docker
 
-This guarantees no event loss on crash: PENDING rows survive restarts
-and are published when the publisher resumes.
+```bash
+./mvnw clean test                                  # run all tests
+./mvnw -pl triagemate-ingest spring-boot:run       # start ingest
+./mvnw -pl triagemate-triage spring-boot:run       # start triage (separate terminal)
+```
 
-## Event flow
-1. Client calls `POST /api/ingest/messages`.
-2. Ingest emits `triagemate.ingest.input-received.v1` with `EventEnvelope`.
-3. Triage consumes event, builds `DecisionContext`, runs `DecisionService`.
-4. Triage emits `triagemate.triage.decision-made.v1`.
-5. Consumer acknowledges manually only after routing succeeds.
+---
 
-## Module responsibilities
-- `triagemate-contracts`: event envelope + versioned payload contracts.
-- `triagemate-ingest`: HTTP API, validation, envelope creation, Kafka publish.
-- `triagemate-triage`: orchestration, deterministic decision engine, outcome routing.
+## Testing
 
-## Versioning strategy
-- Contract evolution is append-only.
-- Breaking payload changes require event version/type bump.
-- Envelope is stable and versioned (`eventVersion`) to preserve replayability.
+```bash
+./mvnw test                           # full suite
+./mvnw -pl triagemate-triage test     # triage only
+./mvnw -pl triagemate-ingest test     # ingest only
+```
 
-## Local setup (5 minutes)
-1. `cp .env.example .env`
-2. `docker compose up --build`
-3. Ingest endpoint: `http://localhost:8081/api/ingest/messages`
-4. Triage actuator health: `http://localhost:8082/actuator/health`
+Integration tests use Testcontainers — Kafka and PostgreSQL are started automatically in Docker. No external infrastructure required.
 
-## Run locally without Docker
-- `./mvnw clean test`
-- `./mvnw -pl triagemate-ingest spring-boot:run`
-- `./mvnw -pl triagemate-triage spring-boot:run`
+---
 
-## Tests
-- Full suite: `./mvnw test`
-- Triage only: `./mvnw -pl triagemate-triage test`
-- Ingest only: `./mvnw -pl triagemate-ingest test`
+## Design Principles
 
-## Design principles
-- SOLID boundaries, framework-free domain model.
-- Event-driven orchestration.
-- Deterministic-before-AI pipeline.
-- Manual commit and explicit retry behavior.
-- Structured JSON logs with correlation fields.
+- **Framework-free domain model** — Core decision logic has zero Spring dependencies. Pure Java, fully testable in isolation.
+- **Event-driven orchestration** — Services communicate exclusively through versioned Kafka events. No synchronous coupling.
+- **Explicit error taxonomy** — Retryable vs. non-retryable failures are first-class concepts, not afterthoughts.
+- **Manual offset commit** — Kafka offsets are acknowledged only after successful processing. No silent data loss.
+- **Structured logging with correlation IDs** — Every log entry carries `requestId`, `correlationId`, and `causationId` for full distributed traceability.
+- **Append-only contract evolution** — Breaking payload changes require a new event version. Existing consumers never break.
 
-## Documentation map
-- Architecture details: `docs/architecture.md`
-- ADRs: `docs/adr/`
-- Logging rules: `docs/logging.md`
+---
 
-## Short roadmap
-- Persistent idempotency store (Redis/Postgres) replacing in-memory guard.
-- Decision policy packs by domain.
-- AI augmentation layer behind deterministic gate.
+## Target Domains
+
+- Fraud detection pipelines
+- Ticket and alert triage
+- Compliance and audit systems
+- AI governance layers
+- Event-driven business rules engines
+
+---
+
+## Known Limitations
+
+- Replay does not yet restore full envelope context — timestamp and metadata are partially reconstructed. Planned improvement for full determinism guarantees.
+
+---
+
+## Documentation
+
+| Document | Path |
+|---|---|
+| Architecture | `docs/architecture.md` |
+| ADRs | `docs/adr/` |
+| Logging discipline | `docs/logging.md` |
+
+---
+
+## Roadmap
+
+- RAG over decision memory (pgvector) — in progress
+- Policy DSL / rule engine abstraction
+- Full replay context restoration
+- Multi-tenant decision engines
+- Confidence calibration for AI advisory
