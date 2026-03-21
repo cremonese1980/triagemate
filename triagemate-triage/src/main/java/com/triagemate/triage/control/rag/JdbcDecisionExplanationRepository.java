@@ -66,6 +66,19 @@ public class JdbcDecisionExplanationRepository implements DecisionExplanationRep
         return jdbcTemplate.query(sql, MAPPER, classification);
     }
 
+    @Override
+    public List<DecisionExplanation> findAllNonArchived() {
+        String sql = "SELECT * FROM decision_explanations WHERE archived_at IS NULL ORDER BY id";
+        return jdbcTemplate.query(sql, MAPPER);
+    }
+
+    @Override
+    public int countNonArchived() {
+        String sql = "SELECT COUNT(*) FROM decision_explanations WHERE archived_at IS NULL";
+        Integer count = jdbcTemplate.queryForObject(sql, Integer.class);
+        return count != null ? count : 0;
+    }
+
     private static final RowMapper<DecisionExplanation> MAPPER = (ResultSet rs, int rowNum) -> {
         Timestamp archivedTs = rs.getTimestamp("archived_at");
         return new DecisionExplanation(

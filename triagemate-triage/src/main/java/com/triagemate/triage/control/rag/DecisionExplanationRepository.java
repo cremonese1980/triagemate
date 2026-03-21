@@ -12,4 +12,8 @@ public interface DecisionExplanationRepository {
     Optional<DecisionExplanation> findById(long id);
 
     List<DecisionExplanation> findByClassification(String classification);
+
+    List<DecisionExplanation> findAllNonArchived();
+
+    int countNonArchived();
 }

@@ -78,4 +78,15 @@ public class RagConfig {
     ) {
         return new DefaultDecisionMemoryService(embeddingService, embeddingRepository);
     }
+
+    @Bean
+    @ConditionalOnBean(CachedEmbeddingService.class)
+    public EmbeddingReindexService embeddingReindexService(
+            CachedEmbeddingService embeddingService,
+            EmbeddingTextPreparer textPreparer,
+            DecisionExplanationRepository explanationRepository,
+            DecisionEmbeddingRepository embeddingRepository
+    ) {
+        return new EmbeddingReindexService(embeddingService, textPreparer, explanationRepository, embeddingRepository);
+    }
 }

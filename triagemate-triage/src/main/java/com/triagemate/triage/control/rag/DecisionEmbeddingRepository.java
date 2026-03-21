@@ -15,4 +15,10 @@ public interface DecisionEmbeddingRepository {
 
     List<DecisionExplanationContext> findSimilarWithFilters(
             float[] queryVector, String embeddingModel, int limit, RetrievalFilters filters);
+
+    boolean existsByExplanationIdAndModel(long explanationId, String embeddingModel);
+
+    int deleteByModelNot(String embeddingModel);
+
+    int countByModel(String embeddingModel);
 }

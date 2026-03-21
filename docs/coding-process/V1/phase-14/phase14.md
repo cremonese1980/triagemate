@@ -344,6 +344,18 @@ in the same vector space.
 - During re-indexing: retrieval degrades gracefully (fewer results, not wrong results)
 - Old embeddings are retained until re-indexing completes, then archived
 
+**Implementation notes:**
+- `EmbeddingReindexService` orchestrates the re-indexing lifecycle:
+  - `reindex()`: iterates all non-archived explanations, generates embeddings for the current
+    model, skips already-indexed entries (idempotent)
+  - `purgeOldModelEmbeddings(model)`: deletes embeddings from obsolete models after re-indexing
+  - `isReindexNeeded()`: detects model drift (current model embedding count < explanation count)
+- Re-indexing is synchronous and on-demand (V1 simplicity, < 100K decisions)
+- No automatic startup trigger — called explicitly to avoid risk
+- Graceful degradation during re-indexing is implicit: `findSimilarWithFilters` filters by
+  `embedding_model`, so only current-model embeddings are returned (fewer, not wrong)
+- `ReindexResult` record tracks created/skipped/failed counts for observability
+
 **Acceptance:**
 - Embedding model change triggers re-indexing
 - Retrieval never mixes vectors from different models

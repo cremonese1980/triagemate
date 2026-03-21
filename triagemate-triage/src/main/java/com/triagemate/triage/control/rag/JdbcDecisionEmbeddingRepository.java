@@ -125,6 +125,26 @@ public class JdbcDecisionEmbeddingRepository implements DecisionEmbeddingReposit
                     rs.getDouble("similarity_score")
             );
 
+    @Override
+    public boolean existsByExplanationIdAndModel(long explanationId, String embeddingModel) {
+        String sql = "SELECT COUNT(*) FROM decision_embeddings WHERE decision_explanation_id = ? AND embedding_model = ?";
+        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, explanationId, embeddingModel);
+        return count != null && count > 0;
+    }
+
+    @Override
+    public int deleteByModelNot(String embeddingModel) {
+        String sql = "DELETE FROM decision_embeddings WHERE embedding_model != ?";
+        return jdbcTemplate.update(sql, embeddingModel);
+    }
+
+    @Override
+    public int countByModel(String embeddingModel) {
+        String sql = "SELECT COUNT(*) FROM decision_embeddings WHERE embedding_model = ?";
+        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, embeddingModel);
+        return count != null ? count : 0;
+    }
+
     static String toVectorLiteral(float[] vector) {
         StringBuilder sb = new StringBuilder("[");
         for (int i = 0; i < vector.length; i++) {
