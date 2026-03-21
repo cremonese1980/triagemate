@@ -15,5 +15,7 @@ public interface DecisionExplanationRepository {
 
     List<DecisionExplanation> findAllNonArchived();
 
+    List<DecisionExplanation> findNonArchivedBatch(long afterId, int batchSize);
+
     int countNonArchived();
 }

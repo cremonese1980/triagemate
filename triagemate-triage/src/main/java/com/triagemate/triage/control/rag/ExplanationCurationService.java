@@ -57,12 +57,6 @@ public class ExplanationCurationService {
         }
 
         String contentHash = computeContentHash(classification, reason);
-
-        if (repository.existsByContentHash(contentHash)) {
-            log.debug("Duplicate explanation detected, skipping curation contentHash={}", contentHash);
-            return;
-        }
-
         String contextSummary = buildContextSummary(context);
         String decisionId = resolveDecisionId(result);
 
@@ -79,6 +73,10 @@ public class ExplanationCurationService {
         );
 
         long id = repository.save(explanation);
+        if (id == -1) {
+            log.debug("Duplicate explanation detected, skipping curation contentHash={}", contentHash);
+            return;
+        }
         log.info("Decision explanation curated id={} decisionId={} classification={}",
                 id, decisionId, classification);
     }

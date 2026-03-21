@@ -225,6 +225,9 @@ class ExplanationCurationServiceTest {
 
         @Override
         public long save(DecisionExplanation explanation) {
+            if (contentHashes.contains(explanation.contentHash())) {
+                return -1;
+            }
             long id = nextId++;
             saved.add(new DecisionExplanation(
                     id, explanation.decisionId(), explanation.policyVersion(),
@@ -256,6 +259,14 @@ class ExplanationCurationServiceTest {
         @Override
         public List<DecisionExplanation> findAllNonArchived() {
             return saved.stream().filter(e -> e.archivedAt() == null).toList();
+        }
+
+        @Override
+        public List<DecisionExplanation> findNonArchivedBatch(long afterId, int batchSize) {
+            return saved.stream()
+                    .filter(e -> e.archivedAt() == null && e.id() > afterId)
+                    .limit(batchSize)
+                    .toList();
         }
 
         @Override

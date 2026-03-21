@@ -26,10 +26,11 @@ public class JdbcDecisionExplanationRepository implements DecisionExplanationRep
                      decision_reason, decision_context_summary, content_hash,
                      quality_score, curated_by, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT (content_hash) WHERE archived_at IS NULL DO NOTHING
                 RETURNING id
                 """;
 
-        Long id = jdbcTemplate.queryForObject(sql, Long.class,
+        List<Long> ids = jdbcTemplate.queryForList(sql, Long.class,
                 explanation.decisionId(),
                 explanation.policyVersion(),
                 explanation.policyFamily(),
@@ -43,7 +44,7 @@ public class JdbcDecisionExplanationRepository implements DecisionExplanationRep
                 Timestamp.from(explanation.createdAt())
         );
 
-        return id != null ? id : -1;
+        return ids.isEmpty() ? -1 : ids.getFirst();
     }
 
     @Override
@@ -70,6 +71,12 @@ public class JdbcDecisionExplanationRepository implements DecisionExplanationRep
     public List<DecisionExplanation> findAllNonArchived() {
         String sql = "SELECT * FROM decision_explanations WHERE archived_at IS NULL ORDER BY id";
         return jdbcTemplate.query(sql, MAPPER);
+    }
+
+    @Override
+    public List<DecisionExplanation> findNonArchivedBatch(long afterId, int batchSize) {
+        String sql = "SELECT * FROM decision_explanations WHERE archived_at IS NULL AND id > ? ORDER BY id LIMIT ?";
+        return jdbcTemplate.query(sql, MAPPER, afterId, batchSize);
     }
 
     @Override

@@ -6,8 +6,10 @@ import org.springframework.jdbc.core.RowMapper;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public class JdbcDecisionEmbeddingRepository implements DecisionEmbeddingRepository {
 
@@ -73,11 +75,12 @@ public class JdbcDecisionEmbeddingRepository implements DecisionEmbeddingReposit
         List<Object> params = new ArrayList<>();
 
         StringBuilder sql = new StringBuilder("""
+                WITH qv AS (SELECT ?::vector AS vec)
                 SELECT dx.id AS explanation_id, dx.classification, dx.outcome,
                        dx.decision_reason, dx.decision_context_summary,
                        dx.policy_version, dx.policy_family, dx.quality_score,
-                       (de.embedding <=> ?::vector) AS similarity_score
-                FROM decision_embeddings de
+                       1.0 - (de.embedding <=> qv.vec) AS similarity_score
+                FROM qv, decision_embeddings de
                 JOIN decision_explanations dx ON dx.id = de.decision_explanation_id
                 WHERE de.embedding_model = ?
                   AND dx.archived_at IS NULL
@@ -91,7 +94,7 @@ public class JdbcDecisionEmbeddingRepository implements DecisionEmbeddingReposit
                 params.add(filters.policyFamily());
             }
             if (filters.minPolicyVersion() != null && !filters.minPolicyVersion().isBlank()) {
-                sql.append("  AND dx.policy_version >= ?\n");
+                sql.append("  AND string_to_array(dx.policy_version, '.')::int[] >= string_to_array(?, '.')::int[]\n");
                 params.add(filters.minPolicyVersion());
             }
             if (filters.classifications() != null && !filters.classifications().isEmpty()) {
@@ -105,8 +108,7 @@ public class JdbcDecisionEmbeddingRepository implements DecisionEmbeddingReposit
             }
         }
 
-        sql.append("ORDER BY de.embedding <=> ?::vector\nLIMIT ?");
-        params.add(vectorLiteral);
+        sql.append("ORDER BY de.embedding <=> qv.vec\nLIMIT ?");
         params.add(limit);
 
         return jdbcTemplate.query(sql.toString(), CONTEXT_MAPPER, params.toArray());
@@ -130,6 +132,20 @@ public class JdbcDecisionEmbeddingRepository implements DecisionEmbeddingReposit
         String sql = "SELECT COUNT(*) FROM decision_embeddings WHERE decision_explanation_id = ? AND embedding_model = ?";
         Integer count = jdbcTemplate.queryForObject(sql, Integer.class, explanationId, embeddingModel);
         return count != null && count > 0;
+    }
+
+    @Override
+    public Set<Long> findIndexedExplanationIds(List<Long> explanationIds, String embeddingModel) {
+        if (explanationIds.isEmpty()) {
+            return Set.of();
+        }
+        String placeholders = String.join(",", Collections.nCopies(explanationIds.size(), "?"));
+        String sql = "SELECT DISTINCT decision_explanation_id FROM decision_embeddings WHERE embedding_model = ? AND decision_explanation_id IN (" + placeholders + ")";
+        List<Object> params = new ArrayList<>();
+        params.add(embeddingModel);
+        params.addAll(explanationIds);
+        List<Long> ids = jdbcTemplate.queryForList(sql, Long.class, params.toArray());
+        return new HashSet<>(ids);
     }
 
     @Override
@@ -159,11 +175,14 @@ public class JdbcDecisionEmbeddingRepository implements DecisionEmbeddingReposit
         if (vectorStr == null || vectorStr.isEmpty()) {
             return new float[0];
         }
-        String inner = vectorStr.substring(1, vectorStr.length() - 1);
+        String inner = vectorStr.substring(1, vectorStr.length() - 1).trim();
+        if (inner.isEmpty()) {
+            return new float[0];
+        }
         String[] parts = inner.split(",");
         float[] result = new float[parts.length];
         for (int i = 0; i < parts.length; i++) {
-            result[i] = Float.parseFloat(parts[i]);
+            result[i] = Float.parseFloat(parts[i].trim());
         }
         return result;
     }

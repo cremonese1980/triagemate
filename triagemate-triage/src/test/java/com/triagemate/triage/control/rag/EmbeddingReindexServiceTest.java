@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
@@ -31,13 +32,10 @@ class EmbeddingReindexServiceTest {
 
     @Test
     void reindexCreatesEmbeddingsForUnindexedExplanations() {
-        DecisionExplanation exp = new DecisionExplanation(
-                1L, "dec-001", "1.0.0", "basic-triage",
-                "RULE_ERROR", "ACCEPT", "Device error detected",
-                "Context", "hash-001", 0.8, "system", Instant.now(), null
-        );
-        when(explanationRepository.findAllNonArchived()).thenReturn(List.of(exp));
-        when(embeddingRepository.existsByExplanationIdAndModel(1L, "nomic-embed-text")).thenReturn(false);
+        DecisionExplanation exp = explanation(1L, "RULE_ERROR", "Device error detected");
+        stubBatch(List.of(exp));
+        when(embeddingRepository.findIndexedExplanationIds(List.of(1L), "nomic-embed-text"))
+                .thenReturn(Set.of());
         when(embeddingService.generateEmbedding(anyString())).thenReturn(new float[]{0.1f, 0.2f});
 
         ReindexResult result = service.reindex();
@@ -51,13 +49,10 @@ class EmbeddingReindexServiceTest {
 
     @Test
     void reindexSkipsAlreadyIndexedExplanations() {
-        DecisionExplanation exp = new DecisionExplanation(
-                1L, "dec-001", "1.0.0", "basic-triage",
-                "RULE_ERROR", "ACCEPT", "Device error detected",
-                "Context", "hash-001", 0.8, "system", Instant.now(), null
-        );
-        when(explanationRepository.findAllNonArchived()).thenReturn(List.of(exp));
-        when(embeddingRepository.existsByExplanationIdAndModel(1L, "nomic-embed-text")).thenReturn(true);
+        DecisionExplanation exp = explanation(1L, "RULE_ERROR", "Device error detected");
+        stubBatch(List.of(exp));
+        when(embeddingRepository.findIndexedExplanationIds(List.of(1L), "nomic-embed-text"))
+                .thenReturn(Set.of(1L));
 
         ReindexResult result = service.reindex();
 
@@ -68,18 +63,11 @@ class EmbeddingReindexServiceTest {
 
     @Test
     void reindexHandlesIndividualFailuresGracefully() {
-        DecisionExplanation exp1 = new DecisionExplanation(
-                1L, "dec-001", "1.0.0", "basic-triage",
-                "RULE_A", "ACCEPT", "Reason A",
-                null, "hash-001", 0.8, "system", Instant.now(), null
-        );
-        DecisionExplanation exp2 = new DecisionExplanation(
-                2L, "dec-002", "1.0.0", "basic-triage",
-                "RULE_B", "ACCEPT", "Reason B",
-                null, "hash-002", 0.8, "system", Instant.now(), null
-        );
-        when(explanationRepository.findAllNonArchived()).thenReturn(List.of(exp1, exp2));
-        when(embeddingRepository.existsByExplanationIdAndModel(anyLong(), any())).thenReturn(false);
+        DecisionExplanation exp1 = explanation(1L, "RULE_A", "Reason A");
+        DecisionExplanation exp2 = explanation(2L, "RULE_B", "Reason B");
+        stubBatch(List.of(exp1, exp2));
+        when(embeddingRepository.findIndexedExplanationIds(anyList(), any()))
+                .thenReturn(Set.of());
         when(embeddingService.generateEmbedding(anyString()))
                 .thenThrow(new RuntimeException("API error"))
                 .thenReturn(new float[]{0.1f});
@@ -92,13 +80,10 @@ class EmbeddingReindexServiceTest {
 
     @Test
     void reindexCountsEmptyEmbeddingsAsFailed() {
-        DecisionExplanation exp = new DecisionExplanation(
-                1L, "dec-001", "1.0.0", "basic-triage",
-                "RULE_A", "ACCEPT", "Reason",
-                null, "hash-001", 0.8, "system", Instant.now(), null
-        );
-        when(explanationRepository.findAllNonArchived()).thenReturn(List.of(exp));
-        when(embeddingRepository.existsByExplanationIdAndModel(1L, "nomic-embed-text")).thenReturn(false);
+        DecisionExplanation exp = explanation(1L, "RULE_A", "Reason");
+        stubBatch(List.of(exp));
+        when(embeddingRepository.findIndexedExplanationIds(List.of(1L), "nomic-embed-text"))
+                .thenReturn(Set.of());
         when(embeddingService.generateEmbedding(anyString())).thenReturn(new float[0]);
 
         ReindexResult result = service.reindex();
@@ -140,5 +125,22 @@ class EmbeddingReindexServiceTest {
         when(explanationRepository.countNonArchived()).thenReturn(0);
 
         assertThat(service.isReindexNeeded()).isFalse();
+    }
+
+    // --- helpers ---
+
+    private DecisionExplanation explanation(long id, String classification, String reason) {
+        return new DecisionExplanation(
+                id, "dec-" + id, "1.0.0", "basic-triage",
+                classification, "ACCEPT", reason,
+                null, "hash-" + id, 0.8, "system", Instant.now(), null
+        );
+    }
+
+    private void stubBatch(List<DecisionExplanation> explanations) {
+        when(explanationRepository.countNonArchived()).thenReturn(explanations.size());
+        when(explanationRepository.findNonArchivedBatch(eq(0L), anyInt())).thenReturn(explanations);
+        when(explanationRepository.findNonArchivedBatch(
+                eq(explanations.getLast().id()), anyInt())).thenReturn(List.of());
     }
 }
